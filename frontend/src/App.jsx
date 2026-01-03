@@ -1,12 +1,28 @@
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CssBaseline, Box } from '@mui/material';
+import Navbar from './components/Navbar';
+import LoginPage from './pages/LoginPage';
+import BoardsPage from './pages/BoardsPage';
+import BoardViewPage from './pages/BoardViewPage';
 
 function App() {
   return (
-    <div className="app-container">
-      <h1>Tasky</h1>
-      <p>Task Management Board</p>
-    </div>
-  )
+    <BrowserRouter>
+      <CssBaseline />
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Navbar />
+        
+        <Routes>
+          {/* If user goes to root "/", redirect them to login */}
+          <Route path="/" element={<Navigate to="/login" />} />
+          
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/boards" element={<BoardsPage />} />
+          <Route path="/boards/:id" element={<BoardViewPage />} />
+        </Routes>
+      </Box>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
