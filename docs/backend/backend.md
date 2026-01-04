@@ -119,7 +119,7 @@ The following documentation is mostly based on the [The ULTIMATE MERN Stack Comp
 
          //////////// Code below shows how to create a new DB and add a document //////////////
          //// The DB is created upon the first insertion
-         // const database = client.db('myNewDatabase'); 
+         // const database = client.db('myDB'); 
          // const collection = database.collection('myCollection');
 
          //// Create a document to insert
@@ -132,7 +132,7 @@ The following documentation is mostly based on the [The ULTIMATE MERN Stack Comp
          client.close();
        }
         
-       let db = client.db(""); //assign which database you want to use throughout your project. 
+       let db = client.db("myDB"); //assign which database you want to use throughout your project. 
         
        export default db;
      ```
@@ -144,7 +144,7 @@ The following documentation is mostly based on the [The ULTIMATE MERN Stack Comp
        const router = express.Router();
 
        router.get("/", async (req, res) => {
-           let collection = await db.collection("");  //here goes the collection found in the database you are using
+           let collection = await db.collection("myCollection");  //here goes the collection found in the database you are using
            let results = await collection.find({}).toArray();
            res.send(results).status(200);   
        });
@@ -163,5 +163,7 @@ The following documentation is mostly based on the [The ULTIMATE MERN Stack Comp
      npm run dev
      ```
   3. To view results go to http://localhost:5050/ in your browser.
+  4. To turn off server connection execute the following in your server terminal `Control` + `C`
+
 
 
