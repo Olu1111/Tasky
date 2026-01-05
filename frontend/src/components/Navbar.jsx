@@ -5,7 +5,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   return (
-    <AppBar position="static">
+    <AppBar position="static" sx={{ backgroundColor: '#263238' }}>
       <Toolbar>
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           Tasky

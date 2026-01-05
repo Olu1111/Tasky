@@ -6,8 +6,17 @@ export default function LoginPage() {
   return (
     <Box sx={{ p: 4, textAlign: 'center' }}>
       <Typography variant="h4" gutterBottom>Login Page</Typography>
-      <Button variant="contained" onClick={() => navigate('/boards')}>
-        Log In (Test)
+      <Button 
+        variant="contained" 
+        onClick={() => navigate('/boards')}
+        sx={{
+          backgroundColor: '#263238',  // Matches Navbar color
+          '&:hover': {
+            backgroundColor: '#1c2529' // Slightly darker on hover
+          }
+        }} 
+    >
+      Log In (Test)
       </Button>
     </Box>
   );
