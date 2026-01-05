@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline, Box } from '@mui/material';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
-import BoardsPage from './pages/BoardsList';
+import BoardsList from './pages/BoardsList';
 import BoardViewPage from './pages/BoardViewPage';
 
 function App() {
@@ -17,8 +17,8 @@ function App() {
           <Route path="/" element={<Navigate to="/login" />} />
           
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/boards" element={<BoardsPage />} />
-          <Route path="/boards/:id" element={<BoardViewPage />} />
+          <Route path="/boards" element={<BoardsList />} />
+          <Route path="/board/:id" element={<BoardViewPage />} />
         </Routes>
       </Box>
     </BrowserRouter>
