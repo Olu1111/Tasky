@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline, Box } from '@mui/material';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
-import BoardsPage from './pages/BoardsPage';
+import BoardsPage from './pages/BoardsList';
 import BoardViewPage from './pages/BoardViewPage';
 
 function App() {
