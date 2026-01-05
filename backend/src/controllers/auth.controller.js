@@ -50,4 +50,39 @@ async function me(req, res) {
   return res.json({ ok: true, data: user });
 }
 
+async function changePassword(req, res) {
+  const actor = req.user; // loaded by requireAuth
+  if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+
+  const { currentPassword, newPassword, userId } = req.body;
+
+  try {
+    // If admin is changing another user's password
+    if (userId && actor.role === "admin") {
+      const target = await models.User.findById(userId);
+      if (!target) return res.status(404).json({ ok: false, error: "User not found" });
+      target.password = newPassword;
+      await target.save();
+      return res.json({ ok: true, data: { message: "Password updated for user" } });
+    }
+
+    // Otherwise, user must provide currentPassword and change their own
+    if (!currentPassword || !newPassword) return res.status(400).json({ ok: false, error: "Missing currentPassword or newPassword" });
+
+    const user = await models.User.findById(actor._id);
+    if (!user) return res.status(404).json({ ok: false, error: "User not found" });
+
+    const match = await user.comparePassword(currentPassword);
+    if (!match) return res.status(401).json({ ok: false, error: "Current password is incorrect" });
+
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({ ok: true, data: { message: "Password updated" } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: "Could not update password" });
+  }
+}
+
 module.exports = { register, login, me };
