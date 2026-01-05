@@ -85,4 +85,5 @@ async function changePassword(req, res) {
   }
 }
 
-module.exports = { register, login, me };
+module.exports = { register, login, me, changePassword };
+
