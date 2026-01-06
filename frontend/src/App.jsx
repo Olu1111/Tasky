@@ -14,11 +14,12 @@ function App() {
   return (
     <BrowserRouter>
       <CssBaseline />
-      {/* GLOBAL TOAST CONTAINER - This makes the popups work */}
+      {/* GLOBAL TOAST CONTAINER */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navbar />
+        {/* Everything inside this Box is protected by the Error Boundary */}
         <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
           <ErrorBoundary>
             <Routes>

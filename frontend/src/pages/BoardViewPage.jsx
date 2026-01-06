@@ -18,10 +18,10 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import { useNavigate, useParams } from 'react-router-dom';
 
-// --- UPDATED MOCK DATA (Simple IDs) ---
+// --- MOCK DATA ---
 const MOCK_DATA = [
   { 
-    id: '1',  
+    id: 'board-1', 
     title: 'Marketing Campaign', 
     status: 'Planning', 
     color: '#00b0ff',
@@ -31,7 +31,7 @@ const MOCK_DATA = [
     ]
   },
   { 
-    id: '2', 
+    id: 'board-2', 
     title: 'Design System', 
     status: 'In Progress', 
     color: '#00c853',
@@ -42,17 +42,18 @@ const MOCK_DATA = [
     ]
   },
   { 
-    id: '3', 
+    id: 'board-3', 
     title: 'Done', 
     status: 'Active', 
     color: '#6200ea',
     items: [] 
   },
 ];
+
 const PRIORITY_STYLES = {
-  High: { color: '#d32f2f', bgcolor: '#ffebee' },    // Red
-  Medium: { color: '#ed6c02', bgcolor: '#fff3e0' },  // Orange
-  Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }      // Green
+  High: { color: '#d32f2f', bgcolor: '#ffebee' },
+  Medium: { color: '#ed6c02', bgcolor: '#fff3e0' },
+  Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }
 };
 
 const BoardViewPage = () => {
@@ -62,7 +63,6 @@ const BoardViewPage = () => {
   const { id } = useParams(); 
 
   useEffect(() => {
-    // Simulate API fetch
     const timer = setTimeout(() => {
       setColumns(MOCK_DATA); 
       setLoading(false);
@@ -114,7 +114,7 @@ const BoardViewPage = () => {
   return (
     <Container maxWidth={false} sx={{ mt: 4, mb: 8, height: '85vh', display: 'flex', flexDirection: 'column' }}>
 
-      {/* --- HEADER WITH BACK BUTTON --- */}
+      {/* --- HEADER --- */}
       <Box mb={3}>
         <Button 
           startIcon={<ArrowBackIcon />} 
@@ -131,7 +131,7 @@ const BoardViewPage = () => {
         </Button>
 
         <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-1px' }}>
-          My Board ({id.replace('board-', '')})
+          My Board ({id ? id.replace('board-', '') : 'Alpha'})
         </Typography>
       </Box>
 
@@ -254,6 +254,29 @@ const BoardViewPage = () => {
               </Button>
             </Box>
           ))}
+          
+          {/* Add Column Button */}
+          <Box sx={{ minWidth: '320px', flexShrink: 0 }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{
+                width: '100%',
+                bgcolor: 'rgba(255,255,255,0.5)',
+                color: 'black',
+                border: '2px dashed #ccc',
+                borderRadius: '12px',
+                p: 2,
+                justifyContent: 'flex-start',
+                textTransform: 'none',
+                fontWeight: 'bold',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#fff', borderColor: 'black' }
+              }}
+            >
+              Add New Column
+            </Button>
+          </Box>
         </Box>
       </DragDropContext>
     </Container>

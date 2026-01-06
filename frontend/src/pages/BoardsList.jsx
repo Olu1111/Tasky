@@ -3,20 +3,20 @@ import { Container, Grid, Card, CardContent, Typography, Skeleton, Box } from '@
 import { useNavigate } from 'react-router-dom';
 
 const mockBoards = [
-  { id: 'board-1', title: 'Marketing Campaign', desc: 'Social media and ad planning' },
-  { id: 'board-2', title: 'Design System', desc: 'UI components and typography' },
-  { id: 'board-3', title: 'Tasky Roadmap', desc: 'Future features and timeline' },
+  { id: 1, title: 'Marketing Campaign', desc: 'Social media and ad planning' },
+  { id: 2, title: 'Design System', desc: 'UI components and typography' },
+  { id: 3, title: 'Tasky Roadmap', desc: 'Future features and timeline' },
 ];
 
 const BoardsList = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
-  // Simulate fetching the list of boards
+  // Simulate fetching data with a skeleton effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 1000); // 1 second load time to show off the skeleton
+    }, 1000); 
     return () => clearTimeout(timer);
   }, []);
 
@@ -28,7 +28,7 @@ const BoardsList = () => {
       </Box>
       
       <Grid container spacing={3}>
-        {/* LOADING STATE (The Skeleton) */}
+        {/* LOADING STATE */}
         {loading ? (
            Array.from(new Array(3)).map((_, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
@@ -36,7 +36,7 @@ const BoardsList = () => {
             </Grid>
           ))
         ) : (
-          /* REAL DATA STATE (The Cards) */
+          /* REAL DATA STATE */
           mockBoards.map((board) => (
             <Grid item xs={12} sm={6} md={4} key={board.id}>
               <Card 
@@ -45,8 +45,9 @@ const BoardsList = () => {
                   height: '100%', 
                   borderRadius: 3,
                   transition: '0.3s',
-                  '&:hover': { translateY: '-5px', boxShadow: 6 } 
+                  '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 } 
                 }}
+                // Navigate to /boards/1, /boards/2, etc.
                 onClick={() => navigate(`/boards/${board.id}`)}
               >
                 <CardContent sx={{ p: 3 }}>
