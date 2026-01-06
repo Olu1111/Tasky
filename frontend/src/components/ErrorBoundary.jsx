@@ -1,54 +1,70 @@
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
+import { Box, Typography, Button, Link } from '@mui/material';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI.
-    return { hasError: true, error };
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    console.error("ErrorBoundary caught an error", error, errorInfo);
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false });
-    window.location.href = '/'; // Hard reset to home
-  };
-
   render() {
-    if (this.state.hasError) {
+    if (this.state.state) {
       return (
-        <Container maxWidth="sm" sx={{ textAlign: 'center', mt: 10 }}>
-          <Typography variant="h2" fontSize="4rem">🤕</Typography>
-          <Typography variant="h4" gutterBottom fontWeight="bold">
+        <Box 
+          display="flex" 
+          flexDirection="column" 
+          alignItems="center" 
+          justifyContent="center" 
+          height="80vh"
+          textAlign="center"
+          p={3}
+        >
+          <ErrorOutlineIcon sx={{ fontSize: 80, color: '#d32f2f', mb: 2 }} />
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
             Oops! Something went wrong.
           </Typography>
           <Typography variant="body1" color="text.secondary" mb={4}>
-            We encountered an unexpected error.
+            The page crashed unexpectedly. Try refreshing or going back.
           </Typography>
-<Button 
-            variant="contained" 
-            onClick={this.handleReset}
+
+          {/* DARK GREY REFRESH BUTTON */}
+          <Button
+            variant="contained"
+            onClick={() => window.location.reload()}
             sx={{
-              bgcolor: '#42526e', 
-              color: 'white',    
-              fontWeight: 'bold',
+              bgcolor: '#424242', // Dark Grey matching your UI
+              color: '#ffffff',
               textTransform: 'none',
-              px: 3,             
+              fontWeight: 'bold',
+              px: 4,
+              py: 1.5,
+              borderRadius: '8px',
               '&:hover': {
-                bgcolor: '#344563', 
+                bgcolor: '#212121', // Darker on hover
+                boxShadow: 6
               }
             }}
           >
-            Refresh Page
+            Reload Page
           </Button>
-        </Container>
+
+          {/* SAFETY LINK */}
+          <Link 
+            href="/boards" 
+            sx={{ mt: 3, color: 'text.secondary', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Go back to My Boards
+          </Link>
+        </Box>
       );
     }
 
