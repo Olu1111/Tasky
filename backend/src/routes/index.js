@@ -2,7 +2,11 @@ const express = require("express");
 
 const router = express.Router();
 
-// Minimal API root to avoid `app.use` receiving a non-function
+// Mount auth routes and domain routes
+router.use("/auth", require("./auth.routes"));
+router.use("/boards", require("./boards.routes"));
+
+// Minimal API root
 router.get("/", (req, res) => {
 	res.json({ ok: true, message: "API root" });
 });
