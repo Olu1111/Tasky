@@ -5,20 +5,21 @@ import {
   CardContent, 
   Typography, 
   Button, 
-  Container,
-  Skeleton,
-  Chip,
-  IconButton,
-  Stack
+  Container, 
+  Skeleton, 
+  Chip, 
+  IconButton, 
+  Stack 
 } from '@mui/material';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+// We use the library you just installed
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'; 
 import AddIcon from '@mui/icons-material/Add';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { useNavigate } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Added Back Icon
+import { useNavigate, useParams } from 'react-router-dom';
 
-// --- MOCK DATA ---
+// --- MOCK DATA (Restored from your GitHub) ---
 const MOCK_DATA = [
   { 
     id: 'board-1', 
@@ -43,14 +44,14 @@ const MOCK_DATA = [
   },
   { 
     id: 'board-3', 
-    title: 'Tasky Roadmap', 
+    title: 'Done', 
     status: 'Active', 
     color: '#6200ea',
     items: [] 
   },
 ];
 
-// --- 1. NEW: PRIORITY COLOR MAP ---
+// --- PRIORITY COLOR MAP (Restored) ---
 const PRIORITY_STYLES = {
   High: { color: '#d32f2f', bgcolor: '#ffebee' },    // Red
   Medium: { color: '#ed6c02', bgcolor: '#fff3e0' },  // Orange
@@ -61,12 +62,14 @@ const BoardViewPage = () => {
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { id } = useParams(); // Using the ID just to be safe
 
   useEffect(() => {
+    // Simulate API fetch
     setTimeout(() => {
       setColumns(MOCK_DATA); 
       setLoading(false);
-    }, 1500); 
+    }, 1000); 
   }, []);
 
   const onDragEnd = (result) => {
@@ -76,7 +79,7 @@ const BoardViewPage = () => {
 
     const sourceColIndex = columns.findIndex(col => col.id === source.droppableId);
     const destColIndex = columns.findIndex(col => col.id === destination.droppableId);
-    
+
     const sourceCol = columns[sourceColIndex];
     const destCol = columns[destColIndex];
 
@@ -86,11 +89,13 @@ const BoardViewPage = () => {
     const [removed] = sourceItems.splice(source.index, 1);
 
     if (source.droppableId === destination.droppableId) {
+      // Same column move
       sourceItems.splice(destination.index, 0, removed);
       const newColumns = [...columns];
       newColumns[sourceColIndex] = { ...sourceCol, items: sourceItems };
       setColumns(newColumns);
     } else {
+      // Different column move
       destItems.splice(destination.index, 0, removed);
       const newColumns = [...columns];
       newColumns[sourceColIndex] = { ...sourceCol, items: sourceItems };
@@ -114,13 +119,30 @@ const BoardViewPage = () => {
 
   return (
     <Container maxWidth={false} sx={{ mt: 4, mb: 8, height: '85vh', display: 'flex', flexDirection: 'column' }}>
-      
-      <Box mb={3}>
+
+{/* --- HEADER WITH BACK BUTTON --- */}
+      <Box mb={4}>
+        {/* The Back Button sits above the title now */}
+        <Button 
+          startIcon={<ArrowBackIcon />} 
+          onClick={() => navigate('/boards')}
+          sx={{ 
+            mb: 1,                 // Add space below the button
+            color: 'text.secondary', 
+            textTransform: 'none', 
+            px: 0,                 // Remove extra padding on the left so it aligns perfectly
+            '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' }
+          }}
+        >
+          Back to Boards
+        </Button>
+
         <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-1px' }}>
-          My Boards
+          My Board ({id || 'Alpha'})
         </Typography>
       </Box>
 
+      {/* --- BOARD COLUMNS --- */}
       <DragDropContext onDragEnd={onDragEnd}>
         <Box 
           sx={{ 
@@ -182,7 +204,6 @@ const BoardViewPage = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            onClick={() => navigate(`/task/${task.id}`)}
                             sx={{ 
                               mb: 2, 
                               borderRadius: '8px', 
@@ -197,10 +218,8 @@ const BoardViewPage = () => {
                               <Typography variant="body2" fontWeight="600" gutterBottom>
                                 {task.content}
                               </Typography>
-                              
+
                               <Stack direction="row" justifyContent="space-between" alignItems="center" mt={1}>
-                                
-                                {/* --- 2. UPDATED CHIP LOGIC HERE --- */}
                                 <Chip 
                                   label={task.priority} 
                                   size="small" 
@@ -212,7 +231,6 @@ const BoardViewPage = () => {
                                     bgcolor: PRIORITY_STYLES[task.priority]?.bgcolor || '#f5f5f5'
                                   }} 
                                 />
-
                                 <Typography variant="caption" color="text.secondary" display="flex" alignItems="center">
                                   <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5 }} />
                                   {task.due}
@@ -241,10 +259,9 @@ const BoardViewPage = () => {
               >
                 Add a task
               </Button>
-
             </Box>
           ))}
-
+          
           <Box sx={{ minWidth: '320px', flexShrink: 0 }}>
             <Button
               variant="contained"
