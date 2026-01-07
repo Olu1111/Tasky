@@ -31,3 +31,24 @@ async function createBoard(req, res) {
 }
 
 module.exports = { createBoard: asyncHandler(createBoard) };
+
+async function listBoards(req, res) {
+  const actor = req.user;
+  if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+
+  try {
+    let boards;
+    if (actor.role === "admin") {
+      boards = await models.Board.find().sort({ createdAt: -1 });
+    } else {
+      boards = await models.Board.find({ owner: actor._id }).sort({ createdAt: -1 });
+    }
+
+    return res.json({ ok: true, data: { boards } });
+  } catch (err) {
+    console.error("listBoards error:", err);
+    return res.status(500).json({ ok: false, error: "Failed to fetch boards" });
+  }
+}
+
+module.exports.listBoards = asyncHandler(listBoards);
