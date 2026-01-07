@@ -5,6 +5,7 @@ const router = express.Router();
 // Mount auth routes and domain routes
 router.use("/auth", require("./auth.routes"));
 router.use("/boards", require("./boards.routes"));
+router.use("/columns", require("./columns.routes"));
 
 // Minimal API root
 router.get("/", (req, res) => {
