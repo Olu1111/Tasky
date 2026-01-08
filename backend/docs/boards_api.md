@@ -157,3 +157,81 @@ Reorder columns
 ---
 
 This file is intentionally short; implementational details (routes, controllers) should follow these shapes.
+
+## Endpoints (detailed)
+
+### GET /api/boards
+- Description: List boards visible to the authenticated user. Admins receive all boards; regular users receive boards they own.
+- Auth: `Authorization: Bearer <token>` required.
+- Response 200:
+
+```json
+{ "ok": true, "data": { "boards": [ /* Board objects as above */ ] } }
+```
+
+### POST /api/boards
+- Description: Create a new board. Admin-only.
+- Auth: `Authorization: Bearer <token>` (admin)
+- Request JSON:
+
+```json
+{ "title": "Project Board", "description": "Optional" }
+```
+
+- Response 201:
+
+```json
+{ "ok": true, "data": { "board": { "_id": "...", "title": "Project Board", "owner": "<userId>", "createdAt": "..." }, "columns": [ /* default columns created */ ] } }
+```
+
+### POST /api/boards/:id/columns
+- Description: Add a column to the specified board. Admin-only.
+- Auth: `Authorization: Bearer <token>` (admin)
+- Request JSON:
+
+```json
+{ "title": "Backlog", "position": 2 }
+```
+
+- Notes:
+  - If `position` is omitted, the column is appended to the end.
+  - If `position` is provided, existing columns at >= `position` are shifted right.
+
+- Response 201:
+
+```json
+{ "ok": true, "data": { "column": { "_id": "...", "title": "Backlog", "board": "<boardId>", "position": 2 } } }
+```
+
+### PATCH /api/columns/:id
+- Description: Rename or reposition a column. Admin-only.
+- Auth: `Authorization: Bearer <token>` (admin)
+- Request JSON (any subset):
+
+```json
+{ "title": "In Review", "position": 3 }
+```
+
+- Notes:
+  - Repositioning will shift other columns to keep a contiguous ordering.
+
+- Response 200: updated column object.
+
+### DELETE /api/columns/:id
+- Description: Delete a column. Admin-only.
+- Auth: `Authorization: Bearer <token>` (admin)
+- Behavior: Deletion is prevented if tickets exist in the column; the endpoint returns `400` with an explanatory error. If deletion succeeds, remaining columns are reindexed to close any gap in positions.
+- Response 200:
+
+```json
+{ "ok": true, "data": { "message": "Deleted" } }
+```
+
+## Error envelope
+
+All endpoints return a consistent error envelope on failure:
+
+```json
+{ "ok": false, "error": "human-friendly message" }
+```
+
