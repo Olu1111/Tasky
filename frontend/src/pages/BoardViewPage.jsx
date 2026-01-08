@@ -11,15 +11,14 @@ import {
   IconButton, 
   Stack 
 } from '@mui/material';
-// We use the library you just installed
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'; 
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Added Back Icon
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import { useNavigate, useParams } from 'react-router-dom';
 
-// --- MOCK DATA (Restored from your GitHub) ---
+// --- MOCK DATA ---
 const MOCK_DATA = [
   { 
     id: 'board-1', 
@@ -51,32 +50,30 @@ const MOCK_DATA = [
   },
 ];
 
-// --- PRIORITY COLOR MAP (Restored) ---
 const PRIORITY_STYLES = {
-  High: { color: '#d32f2f', bgcolor: '#ffebee' },    // Red
-  Medium: { color: '#ed6c02', bgcolor: '#fff3e0' },  // Orange
-  Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }      // Green
+  High: { color: '#d32f2f', bgcolor: '#ffebee' },
+  Medium: { color: '#ed6c02', bgcolor: '#fff3e0' },
+  Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }
 };
 
 const BoardViewPage = () => {
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { id } = useParams(); // Using the ID just to be safe
+  const { id } = useParams(); 
 
   useEffect(() => {
-    // Simulate API fetch
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setColumns(MOCK_DATA); 
       setLoading(false);
     }, 1000); 
+    return () => clearTimeout(timer);
   }, []);
 
   const onDragEnd = (result) => {
     if (!result.destination) return; 
 
     const { source, destination } = result;
-
     const sourceColIndex = columns.findIndex(col => col.id === source.droppableId);
     const destColIndex = columns.findIndex(col => col.id === destination.droppableId);
 
@@ -85,17 +82,14 @@ const BoardViewPage = () => {
 
     const sourceItems = [...sourceCol.items];
     const destItems = [...destCol.items];
-
     const [removed] = sourceItems.splice(source.index, 1);
 
     if (source.droppableId === destination.droppableId) {
-      // Same column move
       sourceItems.splice(destination.index, 0, removed);
       const newColumns = [...columns];
       newColumns[sourceColIndex] = { ...sourceCol, items: sourceItems };
       setColumns(newColumns);
     } else {
-      // Different column move
       destItems.splice(destination.index, 0, removed);
       const newColumns = [...columns];
       newColumns[sourceColIndex] = { ...sourceCol, items: sourceItems };
@@ -120,17 +114,16 @@ const BoardViewPage = () => {
   return (
     <Container maxWidth={false} sx={{ mt: 4, mb: 8, height: '85vh', display: 'flex', flexDirection: 'column' }}>
 
-{/* --- HEADER WITH BACK BUTTON --- */}
-      <Box mb={4}>
-        {/* The Back Button sits above the title now */}
+      {/* --- HEADER --- */}
+      <Box mb={3}>
         <Button 
           startIcon={<ArrowBackIcon />} 
           onClick={() => navigate('/boards')}
           sx={{ 
-            mb: 1,                 // Add space below the button
+            mb: 1, 
             color: 'text.secondary', 
             textTransform: 'none', 
-            px: 0,                 // Remove extra padding on the left so it aligns perfectly
+            px: 0,
             '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' }
           }}
         >
@@ -138,7 +131,7 @@ const BoardViewPage = () => {
         </Button>
 
         <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-1px' }}>
-          My Board ({id || 'Alpha'})
+          My Board ({id ? id.replace('board-', '') : 'Alpha'})
         </Typography>
       </Box>
 
@@ -262,6 +255,7 @@ const BoardViewPage = () => {
             </Box>
           ))}
           
+          {/* Add Column Button */}
           <Box sx={{ minWidth: '320px', flexShrink: 0 }}>
             <Button
               variant="contained"
@@ -283,7 +277,6 @@ const BoardViewPage = () => {
               Add New Column
             </Button>
           </Box>
-
         </Box>
       </DragDropContext>
     </Container>
