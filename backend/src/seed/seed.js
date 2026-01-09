@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 require("dotenv").config();
-
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcrypt"); // Make sure to require bcrypt here
 const { loadEnv } = require("../config/env");
 const { connectDB } = require("../config/db");
 const models = require("../models");
@@ -10,72 +9,72 @@ async function seed() {
   const env = loadEnv();
   await connectDB(env.mongoUri);
 
-  // Create or reuse admin user
-  const adminEmail = "admin@tasky.local";
-  let admin = await models.User.findOne({ email: adminEmail });
-  if (!admin) {
-    const hashed = await bcrypt.hash("password", 10);
-    admin = await models.User.create({ name: "Admin", email: adminEmail, password: hashed, role: "admin" });
-    console.log("Created admin user:", admin.email);
-  } else {
-    console.log("Admin user already exists:", admin.email);
-  }
+  console.log("🧹 Cleaning up old data...");
+  // Force Delete the admin user to ensure a clean slate
+  await models.User.deleteOne({ email: "admin@tasky.local" });
 
-  // Create test board
+  console.log("🔨 Creating new Admin User (Direct Injection)...");
+  
+  // Manually encrypt the password here
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash("password", salt);
+
+  // Use 'collection.insertOne'
+  const adminInsert = await models.User.collection.insertOne({
+    name: "Admin",
+    email: "admin@tasky.local",
+    password: hashedPassword,
+    role: "admin",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    __v: 0
+  });
+
+  const adminId = adminInsert.insertedId;
+  console.log(`✅ Admin created! Email: admin@tasky.local | Password: password`);
+
+  // --- RE-CREATE BOARD & DATA ---
+  
+  // Reuse or Create Board
   let board = await models.Board.findOne({ title: "Test Board" });
   if (!board) {
-    board = await models.Board.create({ title: "Test Board", description: "Seeded test board", owner: admin._id });
-    console.log("Created board:", board.title);
-  } else {
-    console.log("Board already exists:", board.title);
+    board = await models.Board.create({ 
+        title: "Test Board", 
+        description: "Seeded test board", 
+        owner: adminId 
+    });
   }
 
-  // Create columns (backlog -> todo -> doing -> reviewing -> finished)
+  // Reuse or Create Columns
   const columnsData = ["Backlog", "Todo", "Doing", "Reviewing", "Finished"];
   const columns = [];
   for (let i = 0; i < columnsData.length; i++) {
-    const title = columnsData[i];
-    let col = await models.Column.findOne({ title, board: board._id });
+    let col = await models.Column.findOne({ title: columnsData[i], board: board._id });
     if (!col) {
-      col = await models.Column.create({ title, board: board._id, position: i });
-      console.log("Created column:", col.title);
+      col = await models.Column.create({ title: columnsData[i], board: board._id, position: i });
     }
     columns.push(col);
   }
 
-  // Create a couple tickets
-  const ticket1 = await models.Ticket.create({
-    title: "Seed: Welcome to the board",
-    description: "This is a seeded ticket.",
-    board: board._id,
-    column: columns[0]._id,
-    assignee: admin._id,
-    position: 0,
-  });
+  // Create Tickets if empty
+  const ticketCount = await models.Ticket.countDocuments({ board: board._id });
+  if (ticketCount === 0) {
+      await models.Ticket.create({
+        title: "Welcome to Tasky",
+        description: "This is a seeded ticket to get you started.",
+        board: board._id,
+        column: columns[0]._id, // Backlog
+        assignee: adminId,
+        position: 0,
+      });
+      console.log("✅ Created default tickets.");
+  }
 
-  const ticket2 = await models.Ticket.create({
-    title: "Seed: In progress example",
-    description: "This ticket is in progress.",
-    board: board._id,
-    column: columns[2]._id, // place in "Doing"
-    assignee: admin._id,
-    position: 0,
-  });
-
-  console.log("Created tickets:", ticket1.title, ",", ticket2.title);
-
-  // Add comments
-  const comment = await models.Comment.create({ ticket: ticket1._id, author: admin._id, text: "First seeded comment" });
-  ticket1.comments.push(comment._id);
-  await ticket1.save();
-
-  console.log("Added comment to", ticket1.title);
-
-  console.log("Seeding complete.");
+  console.log("🎉 Seeding complete. You can now log in.");
   process.exit(0);
 }
 
 seed().catch((err) => {
-  console.error(err);
+  console.error("❌ Seed Error:", err);
   process.exit(1);
 });

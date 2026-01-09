@@ -1,15 +1,13 @@
 const router = require("express").Router();
 const { requireAuth, requireAdmin } = require("../middleware/auth");
-const { createBoard, listBoards } = require("../controllers/boards.controller");
-const { addColumn } = require("../controllers/columns.controller");
+const boardCtrl = require("../controllers/boards.controller");
+const colCtrl = require("../controllers/columns.controller");
 
-// GET /api/boards - list boards visible to the current user
-router.get("/", requireAuth, listBoards);
+router.get("/", requireAuth, boardCtrl.listBoards);
+router.get("/:id", requireAuth, boardCtrl.getBoardById);
+router.get("/:id/columns", requireAuth, colCtrl.listColumns);
 
-// POST /api/boards/:id/columns - add column to board (admin-only)
-router.post("/:id/columns", requireAuth, requireAdmin, addColumn);
-
-// POST /api/boards - create board (admin-only)
-router.post("/", requireAuth, requireAdmin, createBoard);
+router.post("/", requireAuth, requireAdmin, boardCtrl.createBoard);
+router.post("/:id/columns", requireAuth, requireAdmin, colCtrl.addColumn);
 
 module.exports = router;
