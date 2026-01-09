@@ -1,15 +1,14 @@
 const express = require("express");
-
 const router = express.Router();
 
-// Mount auth routes and domain routes
+// Mount all domain routes for the dynamic board
 router.use("/auth", require("./auth.routes"));
 router.use("/boards", require("./boards.routes"));
 router.use("/columns", require("./columns.routes"));
+router.use("/tickets", require("./ticket.routes"));
 
-// Minimal API root
 router.get("/", (req, res) => {
-	res.json({ ok: true, message: "API root" });
+  res.json({ ok: true, message: "API root" });
 });
 
 module.exports = router;

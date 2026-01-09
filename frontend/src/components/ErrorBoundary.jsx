@@ -8,7 +8,7 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
@@ -17,15 +17,16 @@ class ErrorBoundary extends React.Component {
   }
 
   render() {
-    if (this.state.state) {
+    if (this.state.hasError) {
       return (
         <Box 
           display="flex" 
           flexDirection="column" 
           alignItems="center" 
-          justifyContent="center" 
-          height="80vh"
+          justifyContent="flex-start" 
+          height="100vh"              
           textAlign="center"
+          pt={15}                    
           p={3}
         >
           <ErrorOutlineIcon sx={{ fontSize: 80, color: '#d32f2f', mb: 2 }} />
@@ -36,12 +37,12 @@ class ErrorBoundary extends React.Component {
             The page crashed unexpectedly. Try refreshing or going back.
           </Typography>
 
-          {/* DARK GREY REFRESH BUTTON */}
+          {/* REFRESH BUTTON */}
           <Button
             variant="contained"
             onClick={() => window.location.reload()}
             sx={{
-              bgcolor: '#424242', // Dark Grey matching your UI
+              bgcolor: '#424242', 
               color: '#ffffff',
               textTransform: 'none',
               fontWeight: 'bold',
@@ -49,7 +50,7 @@ class ErrorBoundary extends React.Component {
               py: 1.5,
               borderRadius: '8px',
               '&:hover': {
-                bgcolor: '#212121', // Darker on hover
+                bgcolor: '#212121', 
                 boxShadow: 6
               }
             }}
