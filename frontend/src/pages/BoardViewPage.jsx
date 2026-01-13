@@ -10,6 +10,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 // Custom Components
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import TicketModal from '../components/TicketModal'; 
+import ColumnModal from '../components/ColumnModal'; // New replacement for prompt()
 
 const PRIORITY_STYLES = {
   High: { color: '#d32f2f', bgcolor: '#ffebee' },
@@ -22,16 +24,20 @@ const BoardViewPage = () => {
   const [boardTitle, setBoardTitle] = useState(""); 
   const [loading, setLoading] = useState(true);
   
-  // Modals & Feedback State
+  // Modals State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [columnToDelete, setColumnToDelete] = useState(null);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false); 
+  const [activeColumn, setActiveColumn] = useState(null); 
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false); // Task Polish
+
+  // Feedback State
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // ADMIN-ONLY CHECK: Set to true for development; replace with Auth context later
-  const isAdmin = true; 
+  const isAdmin = true; // Testing mode
 
   // --- FETCH DATA ---
   useEffect(() => {
@@ -39,84 +45,63 @@ const BoardViewPage = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        const headers = { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        };
+        const headers = { 'Authorization': `Bearer ${token}` };
 
         const boardRes = await fetch(`http://localhost:4000/api/boards/${id}`, { headers });
         const boardJson = await boardRes.json();
         if (boardJson.ok) setBoardTitle(boardJson.data.board.title);
 
         const colRes = await fetch(`http://localhost:4000/api/boards/${id}/columns`, { headers });
-        if (!colRes.ok) throw new Error("Failed to fetch columns");
-        
-        const colData = await colRes.json();
-        setColumns(colData); 
-
+        if (colRes.ok) {
+          const colData = await colRes.json();
+          setColumns(colData); 
+        }
       } catch (error) {
-        console.error("Error loading board data:", error);
+        console.error("Load error:", error);
       } finally {
         setLoading(false); 
       }
     };
-
     if (id) fetchBoardAndColumns();
   }, [id]);
 
-  // --- ADMIN: ADD COLUMN ---
-  const handleAddColumn = async () => {
+  // --- TICKET ACTIONS (Task #33) ---
+  const handleCreateTicket = async (ticketData) => {
     try {
-      const title = prompt("Enter column title:");
-      if (!title) return;
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/api/columns/${activeColumn._id}/tickets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(ticketData),
+      });
 
+      if (response.ok) {
+        const result = await response.json();
+        setColumns(columns.map(col => 
+          col._id === activeColumn._id 
+            ? { ...col, items: [...(col.items || []), result.data.ticket] } 
+            : col
+        ));
+        setSnackbar({ open: true, message: 'Task added!', severity: 'success' });
+      }
+    } catch (error) { console.error("Ticket error:", error); }
+  };
+
+  // --- COLUMN ACTIONS (Polished with ColumnModal) ---
+  const handleAddColumn = async (title) => {
+    try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:4000/api/boards/${id}/columns`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title }),
       });
-
       if (response.ok) {
         const result = await response.json();
         setColumns([...columns, { ...result.data.column, items: [] }]);
         setSnackbar({ open: true, message: 'Column added!', severity: 'success' });
       }
-    } catch (error) {
-      console.error("Column creation failed:", error);
-    }
-  };
-
-  // --- ADMIN: RENAME COLUMN ---
-  const handleRenameColumn = async (columnId, newTitle) => {
-    if (!newTitle.trim()) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/columns/${columnId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ title: newTitle }),
-      });
-
-      if (response.ok) {
-        setColumns(columns.map(col => col._id === columnId ? { ...col, title: newTitle } : col));
-        setSnackbar({ open: true, message: 'Column renamed!', severity: 'success' });
-      }
-    } catch (error) {
-      console.error("Rename failed:", error);
-    }
-  };
-
-  // --- ADMIN: DELETE COLUMN ---
-  const openDeleteConfirm = (column) => {
-    setColumnToDelete(column);
-    setIsDeleteModalOpen(true);
+    } catch (error) { console.error("Column error:", error); }
   };
 
   const handleDeleteColumn = async () => {
@@ -126,24 +111,33 @@ const BoardViewPage = () => {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         setColumns(columns.filter(col => col._id !== columnToDelete._id));
         setIsDeleteModalOpen(false);
         setSnackbar({ open: true, message: 'Column deleted!', severity: 'success' });
       }
-    } catch (error) {
-      console.error("Delete failed:", error);
-    }
+    } catch (error) { console.error("Delete error:", error); }
   };
 
-  const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
+  const handleRenameColumn = async (columnId, newTitle) => {
+    if (!newTitle.trim()) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/api/columns/${columnId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (response.ok) {
+        setColumns(columns.map(col => col._id === columnId ? { ...col, title: newTitle } : col));
+      }
+    } catch (error) { console.error("Rename error:", error); }
+  };
 
-  // --- DRAG AND DROP LOGIC ---
+  // --- DRAG AND DROP ---
   const onDragEnd = async (result) => {
     if (!result.destination) return; 
     const { source, destination } = result;
-    
     const sourceColIndex = columns.findIndex(col => col._id === source.droppableId);
     const destColIndex = columns.findIndex(col => col._id === destination.droppableId);
     if (sourceColIndex === -1 || destColIndex === -1) return;
@@ -163,23 +157,16 @@ const BoardViewPage = () => {
       updatedColumns[sourceColIndex] = { ...sourceCol, items: sourceItems };
       updatedColumns[destColIndex] = { ...destCol, items: destItems };
     }
-    
     setColumns(updatedColumns);
 
     try {
       const token = localStorage.getItem('token');
       await fetch(`http://localhost:4000/api/tickets/${removed._id}/move`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ columnId: destination.droppableId, index: destination.index }),
       });
-    } catch (err) {
-      console.error("Sync failed:", err);
-      window.location.reload(); 
-    }
+    } catch { window.location.reload(); } // Fixed linting error
   };
 
   if (loading) {
@@ -208,7 +195,6 @@ const BoardViewPage = () => {
         <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2, height: '100%', alignItems: 'flex-start' }}>
           {columns.map((column) => (
             <Box key={column._id} sx={{ minWidth: '320px', maxWidth: '320px', bgcolor: '#f4f5f7', borderRadius: '12px', p: 2 }}>
-              
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                  {isAdmin ? (
                    <input
@@ -222,7 +208,7 @@ const BoardViewPage = () => {
                  <Box display="flex" alignItems="center" gap={0.5}>
                     <Chip label={column.items?.length || 0} size="small" sx={{ bgcolor: '#ebecf0' }} />
                     {isAdmin && (
-                      <IconButton size="small" onClick={() => openDeleteConfirm(column)}>
+                      <IconButton size="small" onClick={() => { setColumnToDelete(column); setIsDeleteModalOpen(true); }}>
                         <DeleteIcon fontSize="small" sx={{ color: '#5e6c84' }} />
                       </IconButton>
                     )}
@@ -248,25 +234,53 @@ const BoardViewPage = () => {
                   </Box>
                 )}
               </Droppable>
-              <Button fullWidth sx={{ justifyContent: 'flex-start', color: '#5e6c84', textTransform: 'none', mt: 1, '&:hover': { bgcolor: '#ebecf0' } }}>+ Add a task</Button>
+
+              <Button 
+                fullWidth 
+                onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }}
+                sx={{ justifyContent: 'flex-start', color: '#5e6c84', textTransform: 'none', mt: 1, '&:hover': { bgcolor: '#ebecf0' } }}
+              >
+                  + Add a task
+              </Button>
             </Box>
           ))}
 
           {isAdmin && (
             <Box sx={{ minWidth: '320px' }}>
-              <Button onClick={handleAddColumn} sx={{ width: '100%', height: '48px', bgcolor: 'rgba(255,255,255,0.24)', border: '1px dashed #ccc', color: '#172b4d', fontWeight: 600, textTransform: 'none' }}>+ Add another column</Button>
+              <Button 
+                onClick={() => setIsColumnModalOpen(true)} // Replaces prompt()
+                sx={{ width: '100%', height: '48px', bgcolor: 'rgba(255,255,255,0.24)', border: '1px dashed #ccc', color: '#172b4d', fontWeight: 600, textTransform: 'none' }}
+              >
+                + Add another column
+              </Button>
             </Box>
           )}
         </Box>
       </DragDropContext>
 
-      <ConfirmDeleteModal 
-        isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} 
-        onConfirm={handleDeleteColumn} itemName={columnToDelete?.title} 
+      {/* --- MODALS --- */}
+      <ColumnModal 
+        isOpen={isColumnModalOpen} 
+        onClose={() => setIsColumnModalOpen(false)} 
+        onCreate={handleAddColumn} 
       />
 
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%', borderRadius: '8px' }}>{snackbar.message}</Alert>
+      <TicketModal 
+        isOpen={isTicketModalOpen} 
+        onClose={() => setIsTicketModalOpen(false)} 
+        onCreate={handleCreateTicket} 
+        columnTitle={activeColumn?.title} 
+      />
+
+      <ConfirmDeleteModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        onConfirm={handleDeleteColumn} 
+        itemName={columnToDelete?.title} 
+      />
+
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <Alert severity={snackbar.severity} variant="filled" sx={{ width: '100%', borderRadius: '8px' }}>{snackbar.message}</Alert>
       </Snackbar>
     </Container>
   );
