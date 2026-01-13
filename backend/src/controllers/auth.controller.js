@@ -34,7 +34,7 @@ async function login(req, res) {
     if (!user) return res.status(401).json({ ok: false, error: "Invalid credentials" });
 
     const match = await user.comparePassword(password);
-    if (!match) return res.status(401).json({ ok: false, error: "Invalid credentials" });
+    if (!match) return res.status(401).json({ ok: false, error: "Invalid password" });
 
     const token = signToken(user);
     return res.json({ ok: true, data: { user: user.toJSON(), token } });
