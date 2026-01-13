@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Button, Container, 
   Skeleton, Chip
 } from '@mui/material';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'; 
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -141,6 +141,8 @@ const BoardViewPage = () => {
     );
   }
 
+  }
+
   return (
     <Container maxWidth={false} sx={{ mt: 4, mb: 8, height: '85vh', display: 'flex', flexDirection: 'column' }}>
       <Box mb={4}>
@@ -154,7 +156,6 @@ const BoardViewPage = () => {
 
       <DragDropContext onDragEnd={onDragEnd}>
         <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2, height: '100%', alignItems: 'flex-start' }}>
-          
           {columns.map((column) => (
             <Box key={column._id} sx={{ minWidth: '320px', maxWidth: '320px', bgcolor: '#f4f5f7', borderRadius: '12px', p: 2 }}>
               <Box display="flex" justifyContent="space-between" mb={2}>
@@ -203,6 +204,6 @@ const BoardViewPage = () => {
       </DragDropContext>
     </Container>
   );
-};
+
 
 export default BoardViewPage;
