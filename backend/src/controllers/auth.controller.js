@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const models = require("../models");
+const { asyncHandler } = require("../utils/asyncHandler");
 
+// POST Helper to sign tokens
 function signToken(user) {
   const payload = { sub: user._id.toString(), role: user.role };
   const secret = process.env.JWT_SECRET;
@@ -8,82 +10,56 @@ function signToken(user) {
   return jwt.sign(payload, secret, { expiresIn });
 }
 
-async function register(req, res) {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ ok: false, error: "Missing fields" });
-
-  try {
-    const exists = await models.User.findOne({ email });
-    if (exists) return res.status(409).json({ ok: false, error: "Email already in use" });
-
-    const user = await models.User.create({ name, email, password });
-    const token = signToken(user);
-    return res.status(201).json({ ok: true, data: { user: user.toJSON(), token } });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: "Registration failed" });
+// POST /api/auth/register
+const register = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body; 
+  
+  if (!name || !email || !password) {
+    return res.status(400).json({ ok: false, error: "Missing fields" });
   }
-}
 
-async function login(req, res) {
+  const exists = await models.User.findOne({ email });
+  if (exists) return res.status(409).json({ ok: false, error: "Email already in use" });
+
+  const user = await models.User.create({ name, email, password });
+  const token = signToken(user);
+  return res.status(201).json({ ok: true, data: { user: user.toJSON(), token } });
+});
+
+// /api/auth/login
+const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ ok: false, error: "Missing email or password" });
+  if (!email || !password) return res.status(400).json({ ok: false, error: "Missing email/password" });
 
-  try {
-    const user = await models.User.findOne({ email });
-    if (!user) return res.status(401).json({ ok: false, error: "Invalid credentials" });
-
-    const match = await user.comparePassword(password);
-    if (!match) return res.status(401).json({ ok: false, error: "Invalid password" });
-
-    const token = signToken(user);
-    return res.json({ ok: true, data: { user: user.toJSON(), token } });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: "Login failed" });
+  const user = await models.User.findOne({ email });
+  if (!user || !(await user.comparePassword(password))) {
+    return res.status(401).json({ ok: false, error: "Invalid credentials" });
   }
-}
 
-async function me(req, res) {
-  const user = req.user;
-  if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
-  return res.json({ ok: true, data: user });
-}
+  const token = signToken(user);
+  return res.json({ ok: true, data: { user: user.toJSON(), token } });
+});
 
-async function changePassword(req, res) {
-  const actor = req.user; // loaded by requireAuth
-  if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+// GET /api/users - Feeds the Assignee Dropdown
+const listUsers = asyncHandler(async (req, res) => {
+  const users = await models.User.find({}, "name email _id"); 
+  return res.json({ ok: true, data: { users } });
+});
 
-  const { currentPassword, newPassword, userId } = req.body;
+const getMe = asyncHandler(async (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: "Not authenticated" });
+  return res.json({ ok: true, data: req.user });
+});
 
-  try {
-    // If admin is changing another user's password
-    if (userId && actor.role === "admin") {
-      const target = await models.User.findById(userId);
-      if (!target) return res.status(404).json({ ok: false, error: "User not found" });
-      target.password = newPassword;
-      await target.save();
-      return res.json({ ok: true, data: { message: "Password updated for user" } });
-    }
-
-    // Otherwise, user must provide currentPassword and change their own
-    if (!currentPassword || !newPassword) return res.status(400).json({ ok: false, error: "Missing currentPassword or newPassword" });
-
-    const user = await models.User.findById(actor._id);
-    if (!user) return res.status(404).json({ ok: false, error: "User not found" });
-
-    const match = await user.comparePassword(currentPassword);
-    if (!match) return res.status(401).json({ ok: false, error: "Current password is incorrect" });
-
-    user.password = newPassword;
-    await user.save();
-
-    return res.json({ ok: true, data: { message: "Password updated" } });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: "Could not update password" });
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = await models.User.findById(req.user._id);
+  if (!(await user.comparePassword(currentPassword))) {
+    return res.status(401).json({ ok: false, error: "Current password incorrect" });
   }
-}
+  user.password = newPassword;
+  await user.save();
+  res.json({ ok: true, data: { message: "Password updated" } });
+});
 
-module.exports = { register, login, me, changePassword };
-
+module.exports = { register, login, getMe, listUsers, changePassword };
