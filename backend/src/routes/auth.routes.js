@@ -1,10 +1,13 @@
 const router = require("express").Router();
-const { register, login, me, changePassword } = require("../controllers/auth.controller");
 const { requireAuth } = require("../middleware/auth");
+const authController = require("../controllers/auth.controller");
 
-router.post("/register", register);
-router.post("/login", login);
-router.get("/me", requireAuth, me);
-router.post("/change-password", requireAuth, changePassword);
+// Standard Auth
+router.post("/register", authController.register);
+router.post("/login", authController.login);
+router.get("/me", requireAuth, authController.getMe);
+
+// This handles GET /api/users (it's mounted at /users in index.js)
+router.get("/", requireAuth, authController.listUsers); 
 
 module.exports = router;

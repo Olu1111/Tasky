@@ -1,10 +1,13 @@
-const router = require("express").Router();
+const express = require("express");
+const router = express.Router();
 
-// Mount authentication routes
-router.use("/auth", require("./routes/auth.routes"));
-
-// TODO: mount other domain routes (boards, tickets, etc.)
-
+// Mount each domain's routes
+router.use("/auth", require("./auth.routes"));
+router.use("/boards", require("./boards.routes"));
+router.use("/columns", require("./columns.routes"));
+router.use("/tickets", require("./ticket.routes"));
+router.use("/comments", require("./comment.routes"));
+// Minimal API root
 router.get("/", (req, res) => {
   res.json({ ok: true, message: "API root" });
 });
