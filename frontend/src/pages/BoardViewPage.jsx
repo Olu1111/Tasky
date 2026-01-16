@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Box, Card, CardContent, Typography, Button, Container, 
-  Skeleton, Chip, IconButton, Snackbar, Alert 
+  Skeleton, Chip, IconButton, Snackbar, Alert, Avatar 
 } from '@mui/material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import DeleteIcon from '@mui/icons-material/Delete'; 
+import SearchOffIcon from '@mui/icons-material/SearchOff';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -20,6 +21,33 @@ const PRIORITY_STYLES = {
   Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }
 };
 
+// --- HELPERS ---
+// Deterministic color logic for 100% sync
+const getAvatarColor = (id, name) => {
+  if (name?.toLowerCase() === 'admin') return '#263238';
+  let hash = 0;
+  const identifier = id || name || "";
+  for (let i = 0; i < identifier.length; i++) {
+    hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xff;
+    color += `00${value.toString(16)}`.slice(-2);
+  }
+  return color;
+};
+
+// Debounce hook for Issue #39 performance
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+};
+
 const BoardViewPage = () => {
   const [columns, setColumns] = useState([]);
   const [boardTitle, setBoardTitle] = useState(""); 
@@ -28,6 +56,7 @@ const BoardViewPage = () => {
   
   const initialFilters = { search: '', assignees: [], statuses: [], priorities: [] };
   const [filters, setFilters] = useState(initialFilters);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [columnToDelete, setColumnToDelete] = useState(null);
@@ -41,6 +70,13 @@ const BoardViewPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isAdmin = true;
+
+  // 🎯 Lookup helper to fix the "U" vs "A" data sync issue
+  const getAssigneeDetails = useCallback((assigneeData) => {
+    if (!assigneeData) return null;
+    const assigneeId = assigneeData._id || assigneeData;
+    return users.find(u => u._id === assigneeId) || (typeof assigneeData === 'object' ? assigneeData : null);
+  }, [users]);
 
   const fetchData = useCallback(async (isSilent = false) => {
     try {
@@ -57,7 +93,6 @@ const BoardViewPage = () => {
       const boardJson = await boardRes.json();
       if (boardJson.ok) setBoardTitle(boardJson.data.board.title);
       if (colRes.ok) setColumns(await colRes.json());
-      
       if (userRes.ok) {
         const userJson = await userRes.json();
         setUsers(userJson.data?.users || []);
@@ -71,16 +106,43 @@ const BoardViewPage = () => {
 
   useEffect(() => { if (id) fetchData(); }, [id, fetchData]);
 
-  // Handlers for Board Actions
+  // --- ISSUE #39: FILTERING LOGIC ---
+  const filteredColumns = useMemo(() => {
+    return columns.map(column => ({
+      ...column,
+      items: (column.items || []).filter(ticket => {
+        const searchLower = debouncedSearch.toLowerCase();
+        const matchesSearch = 
+          ticket.title.toLowerCase().includes(searchLower) ||
+          (ticket.description || "").toLowerCase().includes(searchLower);
+
+        const ticketAssigneeId = ticket.assignee?._id || ticket.assignee;
+        const matchesAssignee = 
+          filters.assignees.length === 0 || filters.assignees.includes(ticketAssigneeId);
+
+        const matchesStatus = 
+          filters.statuses.length === 0 || filters.statuses.includes(column._id);
+
+        const matchesPriority = 
+          filters.priorities.length === 0 || filters.priorities.includes(ticket.priority);
+
+        return matchesSearch && matchesAssignee && matchesStatus && matchesPriority;
+      })
+    }));
+  }, [columns, filters.assignees, filters.statuses, filters.priorities, debouncedSearch]);
+
+  const hasResults = filteredColumns.some(col => col.items && col.items.length > 0);
+
+  // Handlers
   const handleUpdateTicket = async (ticketId, updatedData) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
+      await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(updatedData),
       });
-      if (res.ok) { fetchData(true); setSnackbar({ open: true, message: 'Updated!', severity: 'success' }); }
+      fetchData(true);
     } catch (err) { console.error(err); }
   };
 
@@ -165,8 +227,8 @@ const BoardViewPage = () => {
       )}
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2, height: '100%', alignItems: 'flex-start' }}>
-          {columns.map((column) => (
+        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2, flexGrow: 1, alignItems: 'flex-start' }}>
+          {filteredColumns.map((column) => (
             <Box key={column._id} sx={{ minWidth: '320px', bgcolor: '#f4f5f7', borderRadius: '12px', p: 2 }}>
               <Box display="flex" justifyContent="space-between" mb={2}>
                  <input 
@@ -184,25 +246,49 @@ const BoardViewPage = () => {
               <Droppable droppableId={column._id}>
                 {(provided) => (
                   <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: '10px' }}>
-                    {column.items?.map((task, index) => (
-                      <Draggable key={task._id} draggableId={task._id} index={index}>
-                        {(provided) => (
-                          <Card ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} 
-                            onClick={() => { setSelectedTicket(task); setIsEditModalOpen(true); }}
-                            sx={{ mb: 1.5, borderRadius: '8px', cursor: 'pointer' }}>
-                            <CardContent sx={{ p: '12px !important' }}>
-                              <Typography variant="body2">{task.title}</Typography>
-                              {task.priority && <Chip label={task.priority} size="small" sx={{ mt: 1, ...PRIORITY_STYLES[task.priority] }} />}
-                            </CardContent>
-                          </Card>
-                        )}
-                      </Draggable>
-                    ))}
+                    {column.items?.map((task, index) => {
+                      // 🎯 Lookup full user object to ensure correct "A" initial for Admin
+                      const assigneeDetails = getAssigneeDetails(task.assignee);
+
+                      return (
+                        <Draggable key={task._id} draggableId={task._id} index={index}>
+                          {(provided) => (
+                            <Card ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} 
+                              onClick={() => { setSelectedTicket(task); setIsEditModalOpen(true); }}
+                              sx={{ mb: 1.5, borderRadius: '8px', cursor: 'pointer' }}>
+                              <CardContent sx={{ p: '12px !important' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1 }}>
+                                    {task.title}
+                                  </Typography>
+                                  
+                                  {/* 🎯 FIXED: Deterministic Avatar uses looked-up data for 100% sync */}
+                                  {assigneeDetails && (
+                                    <Avatar 
+                                      sx={{ 
+                                        width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600,
+                                        bgcolor: getAvatarColor(assigneeDetails._id, assigneeDetails.name) 
+                                      }}
+                                    >
+                                      {assigneeDetails.name?.trim().charAt(0).toUpperCase()}
+                                    </Avatar>
+                                  )}
+                                </Box>
+
+                                {task.priority && (
+                                  <Chip label={task.priority} size="small" sx={{ mt: 1, height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+                        </Draggable>
+                      );
+                    })}
                     {provided.placeholder}
                   </Box>
                 )}
               </Droppable>
-              <Button fullWidth onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }}>+ Add task</Button>
+              <Button fullWidth onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }} sx={{ textTransform: 'none', mt: 1 }}>+ Add task</Button>
             </Box>
           ))}
           <Box sx={{ minWidth: '320px' }}>
@@ -210,6 +296,14 @@ const BoardViewPage = () => {
           </Box>
         </Box>
       </DragDropContext>
+
+      {!hasResults && !loading && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mt: 4, py: 6, bgcolor: '#f9f9f9', borderRadius: '12px', border: '1px dashed #ccc' }}>
+          <SearchOffIcon sx={{ fontSize: 60, color: '#ccc', mb: 1 }} />
+          <Typography variant="h6" color="textSecondary">No tickets match your filters</Typography>
+          <Button onClick={() => setFilters(initialFilters)} sx={{ mt: 1, textTransform: 'none' }}>Clear all filters</Button>
+        </Box>
+      )}
 
       <TicketModal isOpen={isTicketModalOpen} onClose={() => setIsTicketModalOpen(false)} onCreate={handleCreateTicket} columnTitle={activeColumn?.title} />
       <ColumnModal isOpen={isColumnModalOpen} onClose={() => setIsColumnModalOpen(false)} onCreate={handleAddColumn} />

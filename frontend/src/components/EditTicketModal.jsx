@@ -5,6 +5,7 @@ import {
   Avatar, ListItemIcon, ListItemText
 } from '@mui/material';
 
+// SHARED HELPER
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return '#263238';
   let hash = 0;
@@ -32,6 +33,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
 
   useEffect(() => {
     if (ticket && ticket._id) {
+      // Comparison checks to prevent cascading update warning
       if (title !== (ticket.title || "")) setTitle(ticket.title || "");
       if (description !== (ticket.description || "")) setDescription(ticket.description || "");
       if (priority !== (ticket.priority || "Medium")) setPriority(ticket.priority || "Medium");
@@ -68,34 +70,28 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>
-        <Typography variant="h5" fontWeight="800">Edit Task</Typography>
-      </DialogTitle>
-      
+      <DialogTitle><Typography variant="h5" fontWeight="800">Edit Task</Typography></DialogTitle>
       <DialogContent>
         <Box mt={1} display="flex" flexDirection="column" gap={2.5}>
           <TextField label="Title" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} />
           <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={(e) => setDescription(e.target.value)} />
-          
           <TextField select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
             {PRIORITIES.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
           </TextField>
-
           <TextField select label="Status" value={columnId} onChange={(e) => setColumnId(e.target.value)} fullWidth>
             {columns.map((col) => <MenuItem key={col._id} value={col._id}>{col.title}</MenuItem>)}
           </TextField>
-
           <TextField select label="Assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} fullWidth>
             {teamMembers.map((user) => (
               <MenuItem key={user._id} value={user._id}>
                 <ListItemIcon>
                   <Avatar 
                     sx={{ 
-                      width: 24, height: 24, fontSize: '0.75rem', 
-                      bgcolor: getAvatarColor(user._id, user.name) // Using ID for consistent uniqueness
+                      width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600,
+                      bgcolor: getAvatarColor(user._id, user.name) 
                     }}
                   >
-                    {user.name?.charAt(0).toUpperCase()}
+                    {user.name?.trim().charAt(0).toUpperCase()}
                   </Avatar>
                 </ListItemIcon>
                 <ListItemText primary={user.name} />
@@ -104,15 +100,9 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
           </TextField>
         </Box>
       </DialogContent>
-
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancel</Button>
-        <Button 
-          onClick={handleSave} variant="contained" 
-          sx={{ bgcolor: '#263238', fontWeight: 700, textTransform: 'none' }}
-        >
-          Save Changes
-        </Button>
+        <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#263238', fontWeight: 700, textTransform: 'none' }}>Save Changes</Button>
       </DialogActions>
     </Dialog>
   );

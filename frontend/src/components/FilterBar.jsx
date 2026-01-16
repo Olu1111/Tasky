@@ -6,9 +6,9 @@ import {
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 
+// SHARED HELPER
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return '#263238';
-  
   let hash = 0;
   const identifier = id || name || ""; 
   for (let i = 0; i < identifier.length; i++) {
@@ -50,11 +50,11 @@ const FilterBar = ({ filters, setFilters, users, columns, onClear }) => {
               <Avatar 
                 src={option.profilePic} 
                 sx={{ 
-                  width: 24, height: 24, fontSize: '0.8rem', 
-                  bgcolor: getAvatarColor(option._id, option.name) // Using ID now
+                  width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600,
+                  bgcolor: getAvatarColor(option._id, option.name) 
                 }}
               >
-                {option.name?.charAt(0).toUpperCase()}
+                {option.name?.trim().charAt(0).toUpperCase()}
               </Avatar>
               <Typography variant="body2">{option.name}</Typography>
             </Box>
