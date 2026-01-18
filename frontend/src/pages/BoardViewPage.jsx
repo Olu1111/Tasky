@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import DeleteIcon from '@mui/icons-material/Delete'; 
 import SearchOffIcon from '@mui/icons-material/SearchOff';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -21,8 +22,6 @@ const PRIORITY_STYLES = {
   Low: { color: '#2e7d32', bgcolor: '#e8f5e9' }
 };
 
-// --- HELPERS ---
-// Deterministic color logic for 100% sync
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return '#263238';
   let hash = 0;
@@ -38,7 +37,6 @@ const getAvatarColor = (id, name) => {
   return color;
 };
 
-// Debounce hook for Issue #39 performance
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -71,7 +69,6 @@ const BoardViewPage = () => {
   const { id } = useParams();
   const isAdmin = true;
 
-  // 🎯 Lookup helper to fix the "U" vs "A" data sync issue
   const getAssigneeDetails = useCallback((assigneeData) => {
     if (!assigneeData) return null;
     const assigneeId = assigneeData._id || assigneeData;
@@ -92,7 +89,16 @@ const BoardViewPage = () => {
 
       const boardJson = await boardRes.json();
       if (boardJson.ok) setBoardTitle(boardJson.data.board.title);
-      if (colRes.ok) setColumns(await colRes.json());
+      
+      if (colRes.ok) {
+        const rawColumns = await colRes.json();
+        const cleanColumns = rawColumns.map(col => ({
+          ...col,
+          items: (col.items || []).filter(item => !item.deletedAt)
+        }));
+        setColumns(cleanColumns);
+      }
+
       if (userRes.ok) {
         const userJson = await userRes.json();
         setUsers(userJson.data?.users || []);
@@ -106,7 +112,6 @@ const BoardViewPage = () => {
 
   useEffect(() => { if (id) fetchData(); }, [id, fetchData]);
 
-  // --- ISSUE #39: FILTERING LOGIC ---
   const filteredColumns = useMemo(() => {
     return columns.map(column => ({
       ...column,
@@ -129,12 +134,29 @@ const BoardViewPage = () => {
         return matchesSearch && matchesAssignee && matchesStatus && matchesPriority;
       })
     }));
-  }, [columns, filters.assignees, filters.statuses, filters.priorities, debouncedSearch]);
+  }, [columns, filters, debouncedSearch]);
 
-  const hasResults = filteredColumns.some(col => col.items && col.items.length > 0);
+  const isBoardCompletelyEmpty = useMemo(() => {
+    return columns.every(col => !col.items || col.items.length === 0);
+  }, [columns]);
 
-  // Handlers
+  const hasFilterResults = filteredColumns.some(col => col.items && col.items.length > 0);
+
   const handleUpdateTicket = async (ticketId, updatedData) => {
+    if (updatedData.isDeleted) {
+      setColumns(prev => prev.map(col => ({
+        ...col,
+        items: col.items.filter(item => item._id !== ticketId)
+      })));
+      setSnackbar({ open: true, message: 'Task deleted successfully', severity: 'success' });
+      return;
+    }
+
+    if (Object.keys(updatedData).length === 0) {
+      fetchData(true);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
@@ -143,21 +165,49 @@ const BoardViewPage = () => {
         body: JSON.stringify(updatedData),
       });
       fetchData(true);
-    } catch (err) { console.error(err); }
+    } catch (error) { 
+      console.error(error); 
+    }
   };
 
   const onDragEnd = async (result) => {
-    const { destination, draggableId } = result;
+    const { source, destination, draggableId } = result;
     if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const updatedColumns = [...columns];
+    const sourceColIndex = updatedColumns.findIndex(c => c._id === source.droppableId);
+    const destColIndex = updatedColumns.findIndex(c => c._id === destination.droppableId);
+
+    const sourceCol = { ...updatedColumns[sourceColIndex], items: [...updatedColumns[sourceColIndex].items] };
+    const destCol = { ...updatedColumns[destColIndex], items: [...updatedColumns[destColIndex].items] };
+
+    const [movedTask] = sourceCol.items.splice(source.index, 1);
+    
+    if (sourceColIndex === destColIndex) {
+      sourceCol.items.splice(destination.index, 0, movedTask);
+      updatedColumns[sourceColIndex] = sourceCol;
+    } else {
+      destCol.items.splice(destination.index, 0, movedTask);
+      updatedColumns[sourceColIndex] = sourceCol;
+      updatedColumns[destColIndex] = destCol;
+    }
+
+    setColumns(updatedColumns);
+
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/tickets/${draggableId}/move`, {
+      const response = await fetch(`http://localhost:4000/api/tickets/${draggableId}/move`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ columnId: destination.droppableId, index: destination.index }),
       });
+
+      if (!response.ok) throw new Error("Move failed");
+    } catch {
       fetchData(true);
-    } catch (err) { console.error(err); }
+      setSnackbar({ open: true, message: 'Failed to sync move. Reverting...', severity: 'error' });
+    }
   };
 
   const handleCreateTicket = async (ticketData) => {
@@ -168,8 +218,11 @@ const BoardViewPage = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...ticketData, boardId: id, columnId: activeColumn._id }),
       });
-      fetchData(true); setIsTicketModalOpen(false);
-    } catch (err) { console.error(err); }
+      fetchData(true); 
+      setIsTicketModalOpen(false);
+    } catch (error) { 
+      console.error(error); 
+    }
   };
 
   const handleAddColumn = async (title) => {
@@ -181,7 +234,9 @@ const BoardViewPage = () => {
         body: JSON.stringify({ title }),
       });
       fetchData(true); setIsColumnModalOpen(false);
-    } catch (err) { console.error(err); }
+    } catch (error) { 
+      console.error(error); 
+    }
   };
 
   const handleRenameColumn = async (colId, title) => {
@@ -193,7 +248,9 @@ const BoardViewPage = () => {
         body: JSON.stringify({ title }),
       });
       fetchData(true);
-    } catch (err) { console.error(err); }
+    } catch (error) { 
+      console.error(error); 
+    }
   };
 
   const handleDeleteColumn = async () => {
@@ -204,7 +261,9 @@ const BoardViewPage = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setIsDeleteModalOpen(false); fetchData(true);
-    } catch (err) { console.error(err); }
+    } catch (error) { 
+      console.error(error); 
+    }
   };
 
   if (loading && columns.length === 0) return (
@@ -247,7 +306,6 @@ const BoardViewPage = () => {
                 {(provided) => (
                   <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: '10px' }}>
                     {column.items?.map((task, index) => {
-                      // 🎯 Lookup full user object to ensure correct "A" initial for Admin
                       const assigneeDetails = getAssigneeDetails(task.assignee);
 
                       return (
@@ -262,7 +320,6 @@ const BoardViewPage = () => {
                                     {task.title}
                                   </Typography>
                                   
-                                  {/* 🎯 FIXED: Deterministic Avatar uses looked-up data for 100% sync */}
                                   {assigneeDetails && (
                                     <Avatar 
                                       sx={{ 
@@ -275,9 +332,19 @@ const BoardViewPage = () => {
                                   )}
                                 </Box>
 
-                                {task.priority && (
-                                  <Chip label={task.priority} size="small" sx={{ mt: 1, height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />
-                                )}
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    {task.priority && (
+                                      <Chip label={task.priority} size="small" sx={{ height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />
+                                    )}
+                                  </Box>
+                                  {task.comments?.length > 0 && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                                      <ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />
+                                      <Typography variant="caption" fontWeight="600">{task.comments.length}</Typography>
+                                    </Box>
+                                  )}
+                                </Box>
                               </CardContent>
                             </Card>
                           )}
@@ -297,7 +364,7 @@ const BoardViewPage = () => {
         </Box>
       </DragDropContext>
 
-      {!hasResults && !loading && (
+      {!hasFilterResults && !isBoardCompletelyEmpty && !loading && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mt: 4, py: 6, bgcolor: '#f9f9f9', borderRadius: '12px', border: '1px dashed #ccc' }}>
           <SearchOffIcon sx={{ fontSize: 60, color: '#ccc', mb: 1 }} />
           <Typography variant="h6" color="textSecondary">No tickets match your filters</Typography>
