@@ -33,7 +33,10 @@ const CommentThread = ({ comments = [], onAddComment, onDeleteComment, currentUs
         {comments.map((comment) => {
           const authorId = comment.author?._id || comment.author;
           const authorName = comment.author?.name || "Unknown User";
-   
+          
+          // 🎯 DEBUGGING PERMISSIONS: If the button is missing, check these IDs in your console
+          // console.log("Author ID:", authorId, "Current User ID:", currentUserId);
+
           const isAuthor = currentUserId && authorId && (authorId.toString() === currentUserId.toString());
           const isAdmin = currentUserRole === 'admin';
           const canDelete = (isAuthor || isAdmin) && !comment.isDeleted;
@@ -48,19 +51,17 @@ const CommentThread = ({ comments = [], onAddComment, onDeleteComment, currentUs
                   <Box display="flex" alignItems="center" gap={1}>
                     <Typography variant="subtitle2" fontWeight="700">{authorName}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(comment.createdAt).toLocaleString('en-US', { 
-                        hour: 'numeric', minute: 'numeric', hour12: true, month: 'numeric', day: 'numeric' 
-                      })}
+                      {new Date(comment.createdAt).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, month: 'numeric', day: 'numeric' })}
                     </Typography>
                   </Box>
                   
+                  {/* 🎯 DELETE BUTTON: visible if user is Author or Admin */}
                   {canDelete && (
                     <IconButton size="small" onClick={() => onDeleteComment(comment._id)} color="error">
                       <DeleteIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   )}
                 </Box>
-                
                 <Typography 
                   variant="body2" 
                   sx={{ 

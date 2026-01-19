@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Box, Card, CardContent, Typography, Button, Container, 
-  Skeleton, Chip, IconButton, Snackbar, Alert, Avatar 
+  Skeleton, Chip, IconButton, Snackbar, Alert, Avatar,
+  Checkbox, Paper, Fade, Stack 
 } from '@mui/material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
 import DeleteIcon from '@mui/icons-material/Delete'; 
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -15,6 +18,19 @@ import TicketModal from '../components/TicketModal';
 import EditTicketModal from '../components/EditTicketModal'; 
 import ColumnModal from '../components/ColumnModal';
 import FilterBar from '../components/FilterBar';
+
+// 🎯 Task 4: Empty State Component
+const EmptyColumnState = () => (
+  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, opacity: 0.4 }}>
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="9" y1="9" x2="15" y2="9" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="13" y2="17" />
+    </svg>
+    <Typography variant="caption" sx={{ mt: 1, fontWeight: 700 }}>No tasks yet</Typography>
+  </Box>
+);
 
 const PRIORITY_STYLES = {
   High: { color: '#d32f2f', bgcolor: '#ffebee' },
@@ -51,6 +67,7 @@ const BoardViewPage = () => {
   const [boardTitle, setBoardTitle] = useState(""); 
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]); 
+  const [selectedTicketIds, setSelectedTicketIds] = useState([]);
   
   const initialFilters = { search: '', assignees: [], statuses: [], priorities: [] };
   const [filters, setFilters] = useState(initialFilters);
@@ -142,6 +159,34 @@ const BoardViewPage = () => {
 
   const hasFilterResults = filteredColumns.some(col => col.items && col.items.length > 0);
 
+  const handleToggleSelect = (e, ticketId) => {
+    e.stopPropagation(); 
+    setSelectedTicketIds(prev => 
+      prev.includes(ticketId) ? prev.filter(id => id !== ticketId) : [...prev, ticketId]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Delete ${selectedTicketIds.length} tasks?`)) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      await Promise.all(selectedTicketIds.map(ticketId => 
+        fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ));
+      
+      setSnackbar({ open: true, message: `Successfully deleted ${selectedTicketIds.length} tasks`, severity: 'success' });
+      setSelectedTicketIds([]);
+      fetchData(true);
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      setSnackbar({ open: true, message: 'Bulk delete failed', severity: 'error' });
+    }
+  };
+
   const handleUpdateTicket = async (ticketId, updatedData) => {
     if (updatedData.isDeleted) {
       setColumns(prev => prev.map(col => ({
@@ -204,7 +249,8 @@ const BoardViewPage = () => {
       });
 
       if (!response.ok) throw new Error("Move failed");
-    } catch {
+    } catch (error) {
+      console.error(error); 
       fetchData(true);
       setSnackbar({ open: true, message: 'Failed to sync move. Reverting...', severity: 'error' });
     }
@@ -271,7 +317,8 @@ const BoardViewPage = () => {
   );
 
   return (
-    <Container maxWidth={false} sx={{ mt: 4, mb: 8, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+    // 🎯 FIXED: Reduced whitespace under scrollbar
+    <Container maxWidth={false} sx={{ mt: 4, mb: 4, height: '85vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <Box mb={2}>
         <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/boards')}>Back</Button>
         <Typography variant="h4" fontWeight="800">{boardTitle || "Untitled Board"}</Typography>
@@ -305,18 +352,69 @@ const BoardViewPage = () => {
               <Droppable droppableId={column._id}>
                 {(provided) => (
                   <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: '10px' }}>
+                    {/* 🎯 Task 4: Empty Illustration */}
+                    {column.items && column.items.length === 0 && (
+                      <EmptyColumnState />
+                    )}
+
                     {column.items?.map((task, index) => {
                       const assigneeDetails = getAssigneeDetails(task.assignee);
+                      const isSelected = selectedTicketIds.includes(task._id);
 
                       return (
                         <Draggable key={task._id} draggableId={task._id} index={index}>
                           {(provided) => (
-                            <Card ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} 
+                            <Card 
+                              ref={provided.innerRef} 
+                              {...provided.draggableProps} 
                               onClick={() => { setSelectedTicket(task); setIsEditModalOpen(true); }}
-                              sx={{ mb: 1.5, borderRadius: '8px', cursor: 'pointer' }}>
+                              sx={{ 
+                                mb: 1.5, 
+                                borderRadius: '8px', 
+                                cursor: 'pointer',
+                                position: 'relative',
+                                border: isSelected ? '2px solid #263238' : '2px solid transparent',
+                                transition: 'all 0.2s ease',
+                                '&:hover .drag-handle': { opacity: 1 },
+                                '&:hover .selection-checkbox': { opacity: 1 }
+                              }}
+                            >
                               <CardContent sx={{ p: '12px !important' }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1 }}>
+                                {/* 🎯 FIXED: Checkbox at BOTTOM RIGHT */}
+                                <Checkbox 
+                                  className="selection-checkbox"
+                                  size="small"
+                                  checked={isSelected}
+                                  onClick={(e) => handleToggleSelect(e, task._id)}
+                                  sx={{ 
+                                    position: 'absolute', 
+                                    right: 2, 
+                                    bottom: 2, 
+                                    opacity: isSelected ? 1 : 0, 
+                                    transition: 'opacity 0.2s',
+                                    zIndex: 10
+                                  }} 
+                                />
+
+                                <Box 
+                                  className="drag-handle"
+                                  {...provided.dragHandleProps} 
+                                  sx={{ 
+                                    position: 'absolute', 
+                                    left: 2, 
+                                    top: '50%', 
+                                    transform: 'translateY(-50%)', 
+                                    color: '#ccc',
+                                    opacity: 0, 
+                                    transition: 'opacity 0.2s',
+                                    cursor: 'grab'
+                                  }}
+                                >
+                                  <DragIndicatorIcon sx={{ fontSize: 20 }} />
+                                </Box>
+
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, ml: 1.5 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1, pr: 2 }}>
                                     {task.title}
                                   </Typography>
                                   
@@ -332,14 +430,15 @@ const BoardViewPage = () => {
                                   )}
                                 </Box>
 
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1, ml: 1.5 }}>
                                   <Box sx={{ display: 'flex', gap: 1 }}>
                                     {task.priority && (
                                       <Chip label={task.priority} size="small" sx={{ height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />
                                     )}
                                   </Box>
+                                  
                                   {task.comments?.length > 0 && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', mr: 3 }}>
                                       <ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />
                                       <Typography variant="caption" fontWeight="600">{task.comments.length}</Typography>
                                     </Box>
@@ -363,6 +462,52 @@ const BoardViewPage = () => {
           </Box>
         </Box>
       </DragDropContext>
+
+      <Fade in={selectedTicketIds.length > 0}>
+        <Paper 
+          elevation={6}
+          sx={{ 
+            position: 'fixed', 
+            bottom: 30, 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            bgcolor: '#263238', 
+            color: 'white', 
+            px: 3, 
+            py: 1.5, 
+            borderRadius: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            zIndex: 1000
+          }}
+        >
+          <Typography variant="body2" fontWeight="700">
+            {selectedTicketIds.length} tasks selected
+          </Typography>
+          
+          <Stack direction="row" spacing={1}>
+            <Button 
+              size="small" 
+              variant="contained" 
+              color="error" 
+              startIcon={<DeleteIcon />}
+              onClick={handleBulkDelete}
+              sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 700 }}
+            >
+              Bulk Delete
+            </Button>
+            
+            <IconButton 
+              size="small" 
+              onClick={() => setSelectedTicketIds([])}
+              sx={{ color: 'white' }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Paper>
+      </Fade>
 
       {!hasFilterResults && !isBoardCompletelyEmpty && !loading && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mt: 4, py: 6, bgcolor: '#f9f9f9', borderRadius: '12px', border: '1px dashed #ccc' }}>

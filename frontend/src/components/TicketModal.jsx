@@ -47,6 +47,21 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
     if (isOpen) fetchUsers();
   }, [isOpen]);
 
+  // 🎯 KEYBOARD SHORTCUTS
+  const handleKeyDown = (e) => {
+    // Ctrl/Cmd + Enter to submit from anywhere
+    // Enter to submit if focus is on the title field
+    const isHotkey = (e.key === 'Enter' && (e.ctrlKey || e.metaKey));
+    const isTitleEnter = (e.key === 'Enter' && e.target.name === 'title');
+
+    if (isHotkey || isTitleEnter) {
+      if (title.trim()) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    }
+  };
+
   const filteredMembers = teamMembers.filter(user => 
     user.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -72,6 +87,7 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
       fullWidth 
       maxWidth="xs"
       disableRestoreFocus 
+      onKeyDown={handleKeyDown} // 🎯 Attach shortcuts
     >
       <DialogTitle component="div" sx={{ pb: 1 }}>
         <Typography variant="h5" component="span" fontWeight="800" display="block">
@@ -84,7 +100,14 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
       
       <DialogContent>
         <Box mt={1} display="flex" flexDirection="column" gap={2.5}>
-          <TextField label="Task Title *" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} />
+          <TextField 
+            label="Task Title *" 
+            name="title" // Required for the Enter shortcut logic
+            fullWidth 
+            value={title} 
+            onChange={(e) => setTitle(e.target.value)} 
+            autoFocus
+          />
           <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={(e) => setDescription(e.target.value)} />
 
           <TextField select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
