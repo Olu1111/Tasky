@@ -5,6 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 
 // All ticket routes require authentication
 router.use(requireAuth);
+router.get('/search', ticketController.searchTickets);
 
 // --- Standard Ticket Routes ---
 // LIST: GET /api/tickets
@@ -31,4 +32,5 @@ router.post('/:id/comments', ticketController.addComment);
 
 // DELETE /api/tickets/:id/comments/:commentId - Delete comment
 router.delete('/:id/comments/:commentId', ticketController.deleteComment);
+
 module.exports = router;

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Box, Card, CardContent, Typography, Button, Container, 
+  Box, Card, CardContent, Typography, Button, 
   Skeleton, Chip, IconButton, Snackbar, Alert, Avatar,
   Checkbox, Paper, Fade, Stack 
 } from '@mui/material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
-import DeleteIcon from '@mui/icons-material/Delete'; 
+import DeleteIcon from '@mui/icons-material/Delete'; // 🎯 FIXED: Proper import
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -19,7 +19,6 @@ import EditTicketModal from '../components/EditTicketModal';
 import ColumnModal from '../components/ColumnModal';
 import FilterBar from '../components/FilterBar';
 
-// 🎯 Task 4: Empty State Component
 const EmptyColumnState = () => (
   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, opacity: 0.4 }}>
     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +156,9 @@ const BoardViewPage = () => {
     return columns.every(col => !col.items || col.items.length === 0);
   }, [columns]);
 
-  const hasFilterResults = filteredColumns.some(col => col.items && col.items.length > 0);
+  const hasFilterResults = useMemo(() => {
+    return filteredColumns.some(col => col.items && col.items.length > 0);
+  }, [filteredColumns]);
 
   const handleToggleSelect = (e, ticketId) => {
     e.stopPropagation(); 
@@ -313,30 +314,59 @@ const BoardViewPage = () => {
   };
 
   if (loading && columns.length === 0) return (
-    <Container sx={{ mt: 4 }}><Skeleton variant="rectangular" height={400} /></Container>
+    <Box sx={{ p: 4 }}><Skeleton variant="rectangular" height={400} /></Box>
   );
 
   return (
-    // 🎯 FIXED: Reduced whitespace under scrollbar
-    <Container maxWidth={false} sx={{ mt: 4, mb: 4, height: '85vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      <Box mb={2}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/boards')}>Back</Button>
-        <Typography variant="h4" fontWeight="800">{boardTitle || "Untitled Board"}</Typography>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: 'calc(100vh - 64px)',
+      width: '100vw',
+      overflow: 'hidden',
+      bgcolor: '#fff',
+      position: 'fixed', 
+      top: 64, 
+      left: 0
+    }}>
+
+      <Box sx={{ px: 4, pt: 2, pb: 1, flexShrink: 0 }}>
+        <Box mb={1} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/boards')} size="small">Back</Button>
+          <Typography variant="h4" fontWeight="800">{boardTitle || "Untitled Board"}</Typography>
+        </Box>
+
+        {!loading && columns.length > 0 && (
+          <FilterBar 
+            filters={filters} setFilters={setFilters} 
+            users={users} columns={columns} 
+            onClear={() => setFilters(initialFilters)} 
+          />
+        )}
       </Box>
 
-      {!loading && columns.length > 0 && (
-        <FilterBar 
-          filters={filters} setFilters={setFilters} 
-          users={users} columns={columns} 
-          onClear={() => setFilters(initialFilters)} 
-        />
-      )}
-
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2, flexGrow: 1, alignItems: 'flex-start' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 3, 
+          overflowX: 'auto', 
+          overflowY: 'hidden', 
+          flexGrow: 1, 
+          px: 4,
+          pb: 1, 
+          alignItems: 'flex-start' 
+        }}>
           {filteredColumns.map((column) => (
-            <Box key={column._id} sx={{ minWidth: '320px', bgcolor: '#f4f5f7', borderRadius: '12px', p: 2 }}>
-              <Box display="flex" justifyContent="space-between" mb={2}>
+            <Box key={column._id} sx={{ 
+              minWidth: '320px', 
+              bgcolor: '#f4f5f7', 
+              borderRadius: '12px', 
+              p: 2, 
+              maxHeight: 'calc(100% - 20px)', 
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <Box display="flex" justifyContent="space-between" mb={2} sx={{ flexShrink: 0 }}>
                  <input 
                    defaultValue={column.title} 
                    onBlur={(e) => handleRenameColumn(column._id, e.target.value)} 
@@ -351,8 +381,11 @@ const BoardViewPage = () => {
 
               <Droppable droppableId={column._id}>
                 {(provided) => (
-                  <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: '10px' }}>
-                    {/* 🎯 Task 4: Empty Illustration */}
+                  <Box 
+                    ref={provided.innerRef} 
+                    {...provided.droppableProps} 
+                    sx={{ flexGrow: 1, overflowY: 'auto', minHeight: '10px', pr: 0.5 }}
+                  >
                     {column.items && column.items.length === 0 && (
                       <EmptyColumnState />
                     )}
@@ -369,10 +402,7 @@ const BoardViewPage = () => {
                               {...provided.draggableProps} 
                               onClick={() => { setSelectedTicket(task); setIsEditModalOpen(true); }}
                               sx={{ 
-                                mb: 1.5, 
-                                borderRadius: '8px', 
-                                cursor: 'pointer',
-                                position: 'relative',
+                                mb: 1.5, borderRadius: '8px', cursor: 'pointer', position: 'relative',
                                 border: isSelected ? '2px solid #263238' : '2px solid transparent',
                                 transition: 'all 0.2s ease',
                                 '&:hover .drag-handle': { opacity: 1 },
@@ -380,36 +410,15 @@ const BoardViewPage = () => {
                               }}
                             >
                               <CardContent sx={{ p: '12px !important' }}>
-                                {/* 🎯 FIXED: Checkbox at BOTTOM RIGHT */}
                                 <Checkbox 
                                   className="selection-checkbox"
                                   size="small"
                                   checked={isSelected}
                                   onClick={(e) => handleToggleSelect(e, task._id)}
-                                  sx={{ 
-                                    position: 'absolute', 
-                                    right: 2, 
-                                    bottom: 2, 
-                                    opacity: isSelected ? 1 : 0, 
-                                    transition: 'opacity 0.2s',
-                                    zIndex: 10
-                                  }} 
+                                  sx={{ position: 'absolute', right: 2, bottom: 2, opacity: isSelected ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }} 
                                 />
 
-                                <Box 
-                                  className="drag-handle"
-                                  {...provided.dragHandleProps} 
-                                  sx={{ 
-                                    position: 'absolute', 
-                                    left: 2, 
-                                    top: '50%', 
-                                    transform: 'translateY(-50%)', 
-                                    color: '#ccc',
-                                    opacity: 0, 
-                                    transition: 'opacity 0.2s',
-                                    cursor: 'grab'
-                                  }}
-                                >
+                                <Box className="drag-handle" {...provided.dragHandleProps} sx={{ position: 'absolute', left: 2, top: '50%', transform: 'translateY(-50%)', color: '#ccc', opacity: 0, transition: 'opacity 0.2s', cursor: 'grab' }}>
                                   <DragIndicatorIcon sx={{ fontSize: 20 }} />
                                 </Box>
 
@@ -419,24 +428,14 @@ const BoardViewPage = () => {
                                   </Typography>
                                   
                                   {assigneeDetails && (
-                                    <Avatar 
-                                      sx={{ 
-                                        width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600,
-                                        bgcolor: getAvatarColor(assigneeDetails._id, assigneeDetails.name) 
-                                      }}
-                                    >
+                                    <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600, bgcolor: getAvatarColor(assigneeDetails._id, assigneeDetails.name) }}>
                                       {assigneeDetails.name?.trim().charAt(0).toUpperCase()}
                                     </Avatar>
                                   )}
                                 </Box>
 
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1, ml: 1.5 }}>
-                                  <Box sx={{ display: 'flex', gap: 1 }}>
-                                    {task.priority && (
-                                      <Chip label={task.priority} size="small" sx={{ height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />
-                                    )}
-                                  </Box>
-                                  
+                                  {task.priority && <Chip label={task.priority} size="small" sx={{ height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />}
                                   {task.comments?.length > 0 && (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', mr: 3 }}>
                                       <ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />
@@ -454,68 +453,34 @@ const BoardViewPage = () => {
                   </Box>
                 )}
               </Droppable>
-              <Button fullWidth onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }} sx={{ textTransform: 'none', mt: 1 }}>+ Add task</Button>
+              <Button fullWidth onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }} sx={{ textTransform: 'none', mt: 1, flexShrink: 0 }}>+ Add task</Button>
             </Box>
           ))}
-          <Box sx={{ minWidth: '320px' }}>
+          <Box sx={{ minWidth: '320px', pt: 1 }}>
             <Button onClick={() => setIsColumnModalOpen(true)} sx={{ width: '100%', height: '48px', border: '1px dashed #ccc', textTransform: 'none' }}>+ Add column</Button>
           </Box>
         </Box>
       </DragDropContext>
 
+      {/* Conditional Filtering States */}
+      {!hasFilterResults && !isBoardCompletelyEmpty && !loading && (
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+          <SearchOffIcon sx={{ fontSize: 60, color: '#ccc', mb: 1 }} />
+          <Typography variant="h6" color="textSecondary">No tickets match your filters</Typography>
+          <Button onClick={() => setFilters(initialFilters)} sx={{ mt: 1, textTransform: 'none', pointerEvents: 'auto' }}>Clear all filters</Button>
+        </Box>
+      )}
+
+      {/* Floating Toolbar */}
       <Fade in={selectedTicketIds.length > 0}>
-        <Paper 
-          elevation={6}
-          sx={{ 
-            position: 'fixed', 
-            bottom: 30, 
-            left: '50%', 
-            transform: 'translateX(-50%)', 
-            bgcolor: '#263238', 
-            color: 'white', 
-            px: 3, 
-            py: 1.5, 
-            borderRadius: '50px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-            zIndex: 1000
-          }}
-        >
-          <Typography variant="body2" fontWeight="700">
-            {selectedTicketIds.length} tasks selected
-          </Typography>
-          
+        <Paper elevation={6} sx={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', bgcolor: '#263238', color: 'white', px: 3, py: 1.5, borderRadius: '50px', display: 'flex', alignItems: 'center', gap: 3, zIndex: 1000 }}>
+          <Typography variant="body2" fontWeight="700">{selectedTicketIds.length} tasks selected</Typography>
           <Stack direction="row" spacing={1}>
-            <Button 
-              size="small" 
-              variant="contained" 
-              color="error" 
-              startIcon={<DeleteIcon />}
-              onClick={handleBulkDelete}
-              sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 700 }}
-            >
-              Bulk Delete
-            </Button>
-            
-            <IconButton 
-              size="small" 
-              onClick={() => setSelectedTicketIds([])}
-              sx={{ color: 'white' }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <Button size="small" variant="contained" color="error" startIcon={<DeleteIcon />} onClick={handleBulkDelete} sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 700 }}>Bulk Delete</Button>
+            <IconButton size="small" onClick={() => setSelectedTicketIds([])} sx={{ color: 'white' }}><CloseIcon fontSize="small" /></IconButton>
           </Stack>
         </Paper>
       </Fade>
-
-      {!hasFilterResults && !isBoardCompletelyEmpty && !loading && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', mt: 4, py: 6, bgcolor: '#f9f9f9', borderRadius: '12px', border: '1px dashed #ccc' }}>
-          <SearchOffIcon sx={{ fontSize: 60, color: '#ccc', mb: 1 }} />
-          <Typography variant="h6" color="textSecondary">No tickets match your filters</Typography>
-          <Button onClick={() => setFilters(initialFilters)} sx={{ mt: 1, textTransform: 'none' }}>Clear all filters</Button>
-        </Box>
-      )}
 
       <TicketModal isOpen={isTicketModalOpen} onClose={() => setIsTicketModalOpen(false)} onCreate={handleCreateTicket} columnTitle={activeColumn?.title} />
       <ColumnModal isOpen={isColumnModalOpen} onClose={() => setIsColumnModalOpen(false)} onCreate={handleAddColumn} />
@@ -525,7 +490,7 @@ const BoardViewPage = () => {
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
       </Snackbar>
-    </Container>
+    </Box>
   );
 };
 
