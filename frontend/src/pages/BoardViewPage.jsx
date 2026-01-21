@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; 
-import DeleteIcon from '@mui/icons-material/Delete'; // 🎯 FIXED: Proper import
+import DeleteIcon from '@mui/icons-material/Delete'; 
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -93,8 +93,10 @@ const BoardViewPage = () => {
 
   const fetchData = useCallback(async (isSilent = false) => {
     try {
-      if (!isSilent) setLoading(true); 
       const token = localStorage.getItem('token');
+      if (!token) return; // Guard against fetching without a token
+
+      if (!isSilent) setLoading(true); 
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [boardRes, colRes, userRes] = await Promise.all([
@@ -102,6 +104,11 @@ const BoardViewPage = () => {
         fetch(`http://localhost:4000/api/boards/${id}/columns`, { headers }),
         fetch(`http://localhost:4000/api/users`, { headers })
       ]);
+
+      if (boardRes.status === 401) {
+        navigate('/login');
+        return;
+      }
 
       const boardJson = await boardRes.json();
       if (boardJson.ok) setBoardTitle(boardJson.data.board.title);
@@ -124,9 +131,17 @@ const BoardViewPage = () => {
     } finally { 
       setLoading(false); 
     }
-  }, [id]);
+  }, [id, navigate]);
 
-  useEffect(() => { if (id) fetchData(); }, [id, fetchData]);
+  // 🎯 AUTH GUARD: Redirect to login if token is missing
+  useEffect(() => { 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    if (id) fetchData(); 
+  }, [id, fetchData, navigate]);
 
   const filteredColumns = useMemo(() => {
     return columns.map(column => ({
@@ -198,18 +213,15 @@ const BoardViewPage = () => {
       return;
     }
 
-    if (Object.keys(updatedData).length === 0) {
-      fetchData(true);
-      return;
-    }
-
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
+      const response = await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(updatedData),
       });
+
+      if (response.status === 401) navigate('/login');
       fetchData(true);
     } catch (error) { 
       console.error(error); 
@@ -249,7 +261,7 @@ const BoardViewPage = () => {
         body: JSON.stringify({ columnId: destination.droppableId, index: destination.index }),
       });
 
-      if (!response.ok) throw new Error("Move failed");
+      if (response.status === 401) navigate('/login');
     } catch (error) {
       console.error(error); 
       fetchData(true);
@@ -257,29 +269,45 @@ const BoardViewPage = () => {
     }
   };
 
+  // 🎯 FIXED: handleCreateTicket now checks for auth errors
   const handleCreateTicket = async (ticketData) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/tickets`, {
+      const response = await fetch(`http://localhost:4000/api/tickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...ticketData, boardId: id, columnId: activeColumn._id }),
       });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setSnackbar({ open: true, message: 'Session expired. Please login again.', severity: 'error' });
+          navigate('/login');
+        } else {
+          setSnackbar({ open: true, message: 'Failed to save ticket', severity: 'error' });
+        }
+        return;
+      }
+
       fetchData(true); 
       setIsTicketModalOpen(false);
+      setSnackbar({ open: true, message: 'Ticket created successfully!', severity: 'success' });
     } catch (error) { 
       console.error(error); 
+      setSnackbar({ open: true, message: 'Network error', severity: 'error' });
     }
   };
 
   const handleAddColumn = async (title) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/boards/${id}/columns`, {
+      const response = await fetch(`http://localhost:4000/api/boards/${id}/columns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title }),
       });
+
+      if (response.status === 401) navigate('/login');
       fetchData(true); setIsColumnModalOpen(false);
     } catch (error) { 
       console.error(error); 
@@ -289,11 +317,13 @@ const BoardViewPage = () => {
   const handleRenameColumn = async (colId, title) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/columns/${colId}`, {
+      const response = await fetch(`http://localhost:4000/api/columns/${colId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title }),
       });
+
+      if (response.status === 401) navigate('/login');
       fetchData(true);
     } catch (error) { 
       console.error(error); 
@@ -303,10 +333,12 @@ const BoardViewPage = () => {
   const handleDeleteColumn = async () => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/api/columns/${columnToDelete._id}`, {
+      const response = await fetch(`http://localhost:4000/api/columns/${columnToDelete._id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (response.status === 401) navigate('/login');
       setIsDeleteModalOpen(false); fetchData(true);
     } catch (error) { 
       console.error(error); 
@@ -337,11 +369,13 @@ const BoardViewPage = () => {
         </Box>
 
         {!loading && columns.length > 0 && (
-          <FilterBar 
-            filters={filters} setFilters={setFilters} 
-            users={users} columns={columns} 
-            onClear={() => setFilters(initialFilters)} 
-          />
+          <Box sx={{ mb: 2 }}>
+            <FilterBar 
+              filters={filters} setFilters={setFilters} 
+              users={users} columns={columns} 
+              onClear={() => setFilters(initialFilters)} 
+            />
+          </Box>
         )}
       </Box>
 
@@ -353,7 +387,7 @@ const BoardViewPage = () => {
           overflowY: 'hidden', 
           flexGrow: 1, 
           px: 4,
-          pb: 1, 
+          pb: 2, 
           alignItems: 'flex-start' 
         }}>
           {filteredColumns.map((column) => (
@@ -462,12 +496,24 @@ const BoardViewPage = () => {
         </Box>
       </DragDropContext>
 
-      {/* Conditional Filtering States */}
       {!hasFilterResults && !isBoardCompletelyEmpty && !loading && (
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <SearchOffIcon sx={{ fontSize: 60, color: '#ccc', mb: 1 }} />
-          <Typography variant="h6" color="textSecondary">No tickets match your filters</Typography>
-          <Button onClick={() => setFilters(initialFilters)} sx={{ mt: 1, textTransform: 'none', pointerEvents: 'auto' }}>Clear all filters</Button>
+        <Box sx={{ 
+          position: 'absolute', 
+          top: '60%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)', 
+          textAlign: 'center', 
+          pointerEvents: 'none',
+          zIndex: 1
+        }}>
+          <SearchOffIcon sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
+          <Typography variant="h6" color="textSecondary" sx={{ fontWeight: 500 }}>No tickets match your filters</Typography>
+          <Button 
+            onClick={() => setFilters(initialFilters)} 
+            sx={{ mt: 1, textTransform: 'none', pointerEvents: 'auto', fontWeight: 600 }}
+          >
+            Clear all filters
+          </Button>
         </Box>
       )}
 

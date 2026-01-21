@@ -13,12 +13,15 @@ exports.searchTickets = async (req, res) => {
     const query = {
       board: { $in: boardIds },
       deletedAt: null,
-      $text: { $search: q }
+      $or: [
+        { title: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } }
+      ]
     };
 
     const [tickets, total] = await Promise.all([
-      models.Ticket.find(query, { score: { $meta: "textScore" } })
-        .sort({ score: { $meta: "textScore" } }) 
+      models.Ticket.find(query)
+        .sort({ createdAt: -1 }) 
         .skip(skip)
         .limit(parseInt(limit))
         .populate('assignee', 'name email')
@@ -26,6 +29,8 @@ exports.searchTickets = async (req, res) => {
         .populate('column', 'title'),
       models.Ticket.countDocuments(query)
     ]);
+
+    console.log(`Search query "${q}" found ${total} results`);
 
     res.json({
       ok: true,
