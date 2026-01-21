@@ -124,7 +124,6 @@ exports.createTicket = async (req, res) => {
 
     const lastTicket = await models.Ticket.findOne({ column: columnId, deletedAt: null }).sort({ position: -1 });
     const position = lastTicket ? lastTicket.position + 1 : 0;
-
     const ticket = await models.Ticket.create({
       title: title.trim(),
       description: description || "",

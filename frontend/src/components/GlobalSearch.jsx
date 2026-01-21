@@ -17,8 +17,6 @@ const GlobalSearch = () => {
 
   const handleSearch = useCallback(async () => {
     const token = localStorage.getItem('token');
-    
-    // Security check: only search if logged in
     if (!token) {
       setResults([]);
       setOpen(false);
@@ -30,7 +28,6 @@ const GlobalSearch = () => {
     setLoading(true);
     setOpen(true);
     try {
-      // Hits the Regex-powered endpoint for partial word matching
       const response = await fetch(`http://localhost:4000/api/tickets/search?q=${encodeURIComponent(query)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -59,7 +56,7 @@ const GlobalSearch = () => {
         setResults([]);
         setOpen(false);
       }
-    }, 300); // 300ms debounce as per Task #54
+    }, 300); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [query, handleSearch]);
@@ -133,7 +130,6 @@ const GlobalSearch = () => {
               {results.map((ticket) => (
                 <ListItem 
                   key={ticket._id} 
-                  // 🎯 FIX: Changed component to 'div' to resolve boolean attribute error
                   component="div"
                   onClick={() => handleSelectTicket(ticket.board._id)}
                   sx={{ 
@@ -149,8 +145,7 @@ const GlobalSearch = () => {
                         {ticket.title}
                       </Typography>
                     }
-                    // 🎯 FIX: Wrapped secondary content and changed container to 'div' 
-                    // to resolve hydration/nesting errors
+
                     secondary={
                       <Box component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                         <Chip 

@@ -18,7 +18,6 @@ export default function Navbar() {
     <AppBar position="static" sx={{ backgroundColor: '#263238', height: '64px', boxShadow: 'none' }}>
       <Toolbar sx={{ height: '100%', display: 'flex', justifyContent: 'space-between', px: 4 }}>
         
-        {/* Left: Logo (Non-clickable) */}
         <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '150px' }}>
           <Typography 
             variant="h6" 
@@ -32,12 +31,10 @@ export default function Navbar() {
           </Typography>
         </Box>
 
-        {/* Middle: Global Search (Only if logged in) */}
         <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', px: 2 }}>
           {isLoggedIn && <GlobalSearch />}
         </Box>
 
-        {/* Right: Actions (Natural casing and white color restored) */}
         <Box sx={{ display: 'flex', gap: 1, minWidth: '150px', justifyContent: 'flex-end' }}>
           {isLoggedIn ? (
             <>
@@ -60,7 +57,6 @@ export default function Navbar() {
               onClick={() => navigate('/login')}
               disabled={isLoginPage}
               sx={{ 
-                // 🎯 Restore white color even when disabled
                 "&.Mui-disabled": { color: '#ffffff', opacity: 1 } 
               }}
             >

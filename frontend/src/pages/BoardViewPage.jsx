@@ -133,7 +133,6 @@ const BoardViewPage = () => {
     }
   }, [id, navigate]);
 
-  // 🎯 AUTH GUARD: Redirect to login if token is missing
   useEffect(() => { 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -269,7 +268,6 @@ const BoardViewPage = () => {
     }
   };
 
-  // 🎯 FIXED: handleCreateTicket now checks for auth errors
   const handleCreateTicket = async (ticketData) => {
     try {
       const token = localStorage.getItem('token');
@@ -517,7 +515,6 @@ const BoardViewPage = () => {
         </Box>
       )}
 
-      {/* Floating Toolbar */}
       <Fade in={selectedTicketIds.length > 0}>
         <Paper elevation={6} sx={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', bgcolor: '#263238', color: 'white', px: 3, py: 1.5, borderRadius: '50px', display: 'flex', alignItems: 'center', gap: 3, zIndex: 1000 }}>
           <Typography variant="body2" fontWeight="700">{selectedTicketIds.length} tasks selected</Typography>
