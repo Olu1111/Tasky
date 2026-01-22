@@ -1,5 +1,45 @@
 const models = require('../models');
 
+exports.getMyTickets = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, priority } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = { 
+      assignee: req.user._id, 
+      deletedAt: null 
+    };
+
+    if (priority) {
+      query.priority = new RegExp(`^${priority}$`, 'i');
+    }
+
+    const [tickets, total] = await Promise.all([
+      models.Ticket.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('assignee', 'name email')
+        .populate('board', 'title') 
+        .populate('column', 'title'),
+      models.Ticket.countDocuments(query)
+    ]);
+
+    res.json({
+      ok: true,
+      data: {
+        tickets,
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error("Get My Tickets Error:", error);
+    res.status(500).json({ ok: false, error: 'Failed to fetch your tickets' });
+  }
+};
+
 exports.searchTickets = async (req, res) => {
   try {
     const { q, page = 1, limit = 10 } = req.query;
@@ -9,6 +49,7 @@ exports.searchTickets = async (req, res) => {
       $or: [{ owner: req.user._id }, { members: req.user._id }]
     }).select('_id');
     const boardIds = accessibleBoards.map(b => b._id);
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const query = {
       board: { $in: boardIds },
@@ -30,8 +71,6 @@ exports.searchTickets = async (req, res) => {
       models.Ticket.countDocuments(query)
     ]);
 
-    console.log(`Search query "${q}" found ${total} results`);
-
     res.json({
       ok: true,
       data: {
@@ -49,18 +88,12 @@ exports.searchTickets = async (req, res) => {
 
 async function checkBoardAccess(boardId, userId) {
   try {
-    console.log('Checking board access for user:', userId, 'board:', boardId);
     const board = await models.Board.findById(boardId);
-    if (!board) {
-      console.log('Board not found:', boardId);
-      return false;
-    }
+    if (!board) return false;
     const isOwner = board.owner.toString() === userId.toString();
     const isMember = board.members && board.members.some(member => member.toString() === userId.toString());
-    console.log('Board access check:', { isOwner, isMember, owner: board.owner, members: board.members });
     return isOwner || isMember;
   } catch (error) {
-    console.error('Error checking board access:', error);
     return false;
   }
 }
@@ -99,9 +132,8 @@ exports.listTickets = async (req, res) => {
       models.Ticket.countDocuments(query)
     ]);
 
-    res.json({ ok: true, data: { tickets, page: parseInt(page), limit: parseInt(limit), total, totalPages: Math.ceil(total / parseInt(limit)) } });
+    res.json({ ok: true, data: { tickets, total, totalPages: Math.ceil(total / parseInt(limit)) } });
   } catch (error) {
-    console.error('List tickets error:', error);
     res.status(500).json({ ok: false, error: 'Failed to list tickets' });
   }
 };
@@ -111,13 +143,8 @@ exports.createTicket = async (req, res) => {
     const { title, description, priority, boardId, columnId, assignee } = req.body;
     if (!title || !boardId || !columnId) return res.status(400).json({ ok: false, error: "Title, boardId, and columnId are required" });
 
-    console.log('Creating ticket with data:', { title, description, priority, boardId, columnId, assignee, userId: req.user._id });
-
     const hasAccess = await checkBoardAccess(boardId, req.user._id);
-    if (!hasAccess) {
-      console.log('User does not have access to board:', boardId);
-      return res.status(403).json({ ok: false, error: "You don't have access to this board" });
-    }
+    if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this board" });
 
     const column = await models.Column.findOne({ _id: columnId, board: boardId });
     if (!column) return res.status(400).json({ ok: false, error: "Invalid column for this board" });
@@ -140,7 +167,6 @@ exports.createTicket = async (req, res) => {
     
     res.status(201).json({ ok: true, data: { ticket: populatedTicket } });
   } catch (error) {
-    console.error('Create ticket error:', error);
     res.status(500).json({ ok: false, error: `Failed to create ticket: ${error.message}` });
   }
 };
@@ -158,7 +184,6 @@ exports.getTicket = async (req, res) => {
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
     res.json({ ok: true, data: { ticket } });
   } catch (error) {
-    console.error('Get ticket error:', error);
     res.status(500).json({ ok: false, error: "Failed to fetch ticket" });
   }
 };
@@ -184,7 +209,6 @@ exports.updateTicket = async (req, res) => {
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
     res.json({ ok: true, data: { ticket } });
   } catch (error) {
-    console.error('Update ticket error:', error);
     res.status(500).json({ ok: false, error: "Failed to update ticket" });
   }
 };
@@ -208,7 +232,6 @@ exports.deleteTicket = async (req, res) => {
       res.json({ ok: true, message: "Ticket deleted" });
     }
   } catch (error) {
-    console.error('Delete ticket error:', error);
     res.status(500).json({ ok: false, error: "Failed to delete ticket" });
   }
 };
@@ -218,8 +241,6 @@ exports.moveTicket = async (req, res) => {
     const { id } = req.params;
     const { columnId, index } = req.body;
     if (!columnId || typeof index !== 'number') return res.status(400).json({ ok: false, error: "columnId and index are required" });
-
-    console.log('Move ticket request:', { id, columnId, index });
 
     const hasAccess = await models.Ticket.canUserAccess(id, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
@@ -233,8 +254,6 @@ exports.moveTicket = async (req, res) => {
     };
 
     const newStatus = getStatusFromColumn(destinationColumn.title);
-    console.log('Updating ticket:', { ticketId: ticket._id, newStatus, newColumn: columnId, newPosition: index });
-
     let result;
     try {
       const session = await models.Ticket.startSession();
@@ -254,14 +273,11 @@ exports.moveTicket = async (req, res) => {
       });
       session.endSession();
     } catch (err) {
-      console.warn('Session-based move failed, falling back:', err.message);
       result = await models.Ticket.findByIdAndUpdate(id, { column: columnId, position: index, status: newStatus }, { new: true })
         .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
     }
-    console.log('Move completed successfully');
     res.json({ ok: true, data: { ticket: result } });
   } catch (error) {
-    console.error('Move ticket error:', error);
     res.status(500).json({ ok: false, error: `Failed to move ticket` });
   }
 };
@@ -287,7 +303,6 @@ exports.addComment = async (req, res) => {
     await comment.populate('author', 'name');
     res.status(201).json({ ok: true, data: { comment } });
   } catch (error) {
-    console.error('Add comment error:', error);
     res.status(500).json({ ok: false, error: "Failed to add comment" });
   }
 };
@@ -308,7 +323,6 @@ exports.deleteComment = async (req, res) => {
 
     res.json({ ok: true, message: "Comment deleted" });
   } catch (error) {
-    console.error("Delete comment error:", error);
     res.status(500).json({ ok: false, error: "Internal server error during comment deletion" });
   }
 };

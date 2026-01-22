@@ -7,13 +7,10 @@ const colCtrl = require("../controllers/columns.controller");
 router.get("/", requireAuth, boardsCtrl.listBoards);
 router.get("/:id", requireAuth, boardsCtrl.getBoardById);
 router.post("/", requireAuth, requireAdmin, boardsCtrl.createBoard);
+router.delete("/:id", requireAuth, requireAdmin, boardsCtrl.deleteBoard);
 
 // --- COLUMN SUB-ROUTES ---
-
-// 1. GET /api/boards/:id/columns
 router.get("/:id/columns", requireAuth, colCtrl.listColumnsByBoard);
-
-// 2. POST /api/boards/:id/columns
 router.post("/:id/columns", requireAuth, requireAdmin, colCtrl.addColumn);
 
 module.exports = router;

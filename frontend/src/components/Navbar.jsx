@@ -35,9 +35,15 @@ export default function Navbar() {
           {isLoggedIn && <GlobalSearch />}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1, minWidth: '150px', justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1, minWidth: '280px', justifyContent: 'flex-end' }}>
           {isLoggedIn ? (
             <>
+              <Button 
+                color="inherit" 
+                onClick={() => navigate('/my-tickets')} 
+              >
+                My Tickets
+              </Button>
               <Button 
                 color="inherit" 
                 onClick={() => navigate('/boards')} 

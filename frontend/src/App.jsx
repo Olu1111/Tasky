@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import BoardsList from './pages/BoardsList';
 import BoardViewPage from './pages/BoardViewPage';
+import MyTicketsPage from './pages/MyTicketsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // --- NEW IMPORTS ---
@@ -14,19 +15,19 @@ function App() {
   return (
     <BrowserRouter>
       <CssBaseline />
-      {/* GLOBAL TOAST CONTAINER */}
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Navbar />
-        {/* Everything inside this Box is protected by the Error Boundary */}
-        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+
+        <Box component="main" sx={{ flexGrow: 1 }}>
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Navigate to="/login" />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/boards" element={<BoardsList />} />
               <Route path="/boards/:id" element={<BoardViewPage />} />
+              <Route path="/my-tickets" element={<MyTicketsPage />} />
             </Routes>
           </ErrorBoundary>
         </Box>
