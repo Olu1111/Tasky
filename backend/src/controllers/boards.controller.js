@@ -1,10 +1,37 @@
 const models = require("../models");
 const { asyncHandler } = require("../utils/asyncHandler");
+const { logBoardCreation, logBoardDeletion } = require("../middleware/activityLogger");
+
+/**
+ * Check if user has access to view a board
+ */
+const canAccessBoard = (user, board) => {
+  if (user.role === "admin") return true;
+  if (board.owner.toString() === user._id.toString()) return true;
+  if (board.members.some(m => m.toString() === user._id.toString())) return true;
+  return false;
+};
+
+/**
+ * Check if user can modify a board (edit/delete)
+ */
+const canModifyBoard = (user, board) => {
+  if (user.role === "admin") return true;
+  if (board.owner.toString() === user._id.toString()) return true;
+  return false;
+};
+
 const getBoardById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
-    const board = await models.Board.findById(id);
+    const board = await models.Board.findById(id).populate("owner members", "name email role");
     if (!board) return res.status(404).json({ ok: false, error: "Board not found" });
+    
+    // Check access
+    if (!canAccessBoard(req.user, board)) {
+      return res.status(403).json({ ok: false, error: "You do not have access to this board" });
+    }
+    
     return res.json({ ok: true, data: { board } });
   } catch (err) {
     return res.status(500).json({ ok: false, error: "Failed to fetch board" });
@@ -18,11 +45,13 @@ const listBoards = asyncHandler(async (req, res) => {
   try {
     let boards;
     if (actor.role === "admin") {
-      boards = await models.Board.find().sort({ createdAt: -1 });
+      // Admins see all boards
+      boards = await models.Board.find().sort({ createdAt: -1 }).populate("owner members", "name email role");
     } else {
+      // Members/viewers see only boards they own or are members of
       boards = await models.Board.find({ 
         $or: [{ owner: actor._id }, { members: actor._id }] 
-      }).sort({ createdAt: -1 });
+      }).sort({ createdAt: -1 }).populate("owner members", "name email role");
     }
     return res.json({ ok: true, data: { boards } });
   } catch (err) {
@@ -31,21 +60,34 @@ const listBoards = asyncHandler(async (req, res) => {
   }
 });
 
-// POST /api/boards
+// POST /api/boards - Only members and admins can create
 const createBoard = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
   if (!title || typeof title !== "string" || !title.trim()) {
     return res.status(400).json({ ok: false, error: "`title` is required" });
   }
 
+  // Only members and admins can create boards
+  if (!["admin", "member"].includes(req.user.role)) {
+    return res.status(403).json({ ok: false, error: "Only members and admins can create boards" });
+  }
+
   const ownerId = req.user && req.user._id;
   let board;
   try {
-    board = await models.Board.create({ title: title.trim(), description: description || "", owner: ownerId });
+    board = await models.Board.create({ 
+      title: title.trim(), 
+      description: description || "", 
+      owner: ownerId,
+      members: [] 
+    });
 
     const columnsData = ["Backlog", "Todo", "In Progress", "Review", "Done"];
     const colsToCreate = columnsData.map((t, i) => ({ title: t, board: board._id, position: i }));
     const createdColumns = await models.Column.insertMany(colsToCreate);
+
+    // Log board creation activity
+    await logBoardCreation(board._id, req.user._id, title.trim());
 
     return res.status(201).json({ ok: true, data: { board, columns: createdColumns } });
   } catch (err) {
@@ -65,16 +107,17 @@ const deleteBoard = asyncHandler(async (req, res) => {
       return res.status(404).json({ ok: false, error: "Board not found" });
     }
 
-    const isOwner = board.owner.toString() === userId.toString();
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({ ok: false, error: "Unauthorized to delete this board" });
+    // Check if user can modify board
+    if (!canModifyBoard(req.user, board)) {
+      return res.status(403).json({ ok: false, error: "You do not have permission to delete this board" });
     }
 
     await models.Board.findByIdAndDelete(id);
     await models.Column.deleteMany({ board: id });
     await models.Ticket.deleteMany({ board: id });
+
+    // Log board deletion activity
+    await logBoardDeletion(id, req.user._id);
 
     return res.json({ ok: true, message: "Board and all associated data deleted" });
   } catch (err) {
@@ -87,5 +130,7 @@ module.exports = {
   getBoardById,
   listBoards,
   createBoard,
-  deleteBoard 
+  deleteBoard,
+  canAccessBoard,
+  canModifyBoard
 };

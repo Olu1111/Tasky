@@ -22,5 +22,31 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { requireAuth, requireAdmin };
+/**
+ * Require member role (admin > member)
+ */
+function requireMember(req, res, next) {
+  if (!req.user) return res.status(401).json({ ok: false, error: "Not authenticated" });
+  if (!["admin", "member"].includes(req.user.role)) {
+    return res.status(403).json({ ok: false, error: "Member access required" });
+  }
+  return next();
+}
 
+/**
+ * Check if user has a minimum role level
+ */
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        ok: false, 
+        error: `Required role(s): ${roles.join(", ")}` 
+      });
+    }
+    return next();
+  };
+}
+
+module.exports = { requireAuth, requireAdmin, requireMember, requireRole };

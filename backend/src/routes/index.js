@@ -11,6 +11,9 @@ router.use("/users", require("./auth.routes"));
 
 router.use("/tickets", require("./comment.routes"));
 
+// Activity/audit log routes
+router.use("/", require("./activity.routes"));
+
 // Minimal API root
 router.get("/", (req, res) => {
   res.json({ ok: true, message: "API root" });

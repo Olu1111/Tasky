@@ -1,0 +1,222 @@
+/**
+ * Activity Controller
+ * Handles retrieving activity logs
+ */
+
+const models = require("../models");
+const { asyncHandler } = require("../utils/asyncHandler");
+
+/**
+ * Get activity logs for a board
+ * GET /api/boards/:boardId/activity
+ */
+const getActivityLogs = asyncHandler(async (req, res) => {
+  const { boardId } = req.params;
+  const { entityType, userId, action, limit = 50, skip = 0 } = req.query;
+
+  // Build query filter
+  const query = { boardId };
+
+  if (entityType) {
+    query.entityType = entityType;
+  }
+
+  if (userId) {
+    query.userId = userId;
+  }
+
+  if (action) {
+    query.action = action;
+  }
+
+  // Get total count for pagination
+  const total = await models.ActivityLog.countDocuments(query);
+
+  // Fetch paginated results, sorted by most recent first
+  const activities = await models.ActivityLog.find(query)
+    .populate("userId", "username email")
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .skip(parseInt(skip))
+    .lean();
+
+  res.json({
+    success: true,
+    data: activities,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      skip: parseInt(skip),
+      hasMore: parseInt(skip) + parseInt(limit) < total,
+    },
+  });
+});
+
+/**
+ * Get activity logs for a specific ticket
+ * GET /api/tickets/:ticketId/activity
+ */
+const getTicketActivityLogs = asyncHandler(async (req, res) => {
+  const { ticketId } = req.params;
+  const { limit = 50, skip = 0 } = req.query;
+
+  // Get total count
+  const total = await models.ActivityLog.countDocuments({
+    entityId: ticketId,
+  });
+
+  // Fetch activities for this ticket
+  const activities = await models.ActivityLog.find({
+    entityId: ticketId,
+  })
+    .populate("userId", "username email")
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .skip(parseInt(skip))
+    .lean();
+
+  res.json({
+    success: true,
+    data: activities,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      skip: parseInt(skip),
+      hasMore: parseInt(skip) + parseInt(limit) < total,
+    },
+  });
+});
+
+/**
+ * Get detailed timeline of activity for a board with user info
+ * GET /api/boards/:boardId/activity/timeline
+ */
+const getActivityTimeline = asyncHandler(async (req, res) => {
+  const { boardId } = req.params;
+  const { days = 7, limit = 100 } = req.query;
+
+  // Calculate date range
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - parseInt(days));
+
+  const activities = await models.ActivityLog.find({
+    boardId,
+    createdAt: { $gte: startDate, $lte: endDate },
+  })
+    .populate("userId", "username email")
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .lean();
+
+  // Group by date
+  const groupedActivities = {};
+  activities.forEach((activity) => {
+    const dateKey = activity.createdAt.toISOString().split("T")[0];
+    if (!groupedActivities[dateKey]) {
+      groupedActivities[dateKey] = [];
+    }
+    groupedActivities[dateKey].push(activity);
+  });
+
+  res.json({
+    success: true,
+    data: groupedActivities,
+    dateRange: {
+      start: startDate,
+      end: endDate,
+      days: parseInt(days),
+    },
+  });
+});
+
+/**
+ * Get activity summary/stats for a board
+ * GET /api/boards/:boardId/activity/stats
+ */
+const getActivityStats = asyncHandler(async (req, res) => {
+  const { boardId } = req.params;
+  const { days = 30 } = req.query;
+
+  // Calculate date range
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - parseInt(days));
+
+  // Aggregate stats
+  const stats = await models.ActivityLog.aggregate([
+    {
+      $match: {
+        boardId,
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: "$action",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { count: -1 },
+    },
+  ]);
+
+  const userStats = await models.ActivityLog.aggregate([
+    {
+      $match: {
+        boardId,
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: "$userId",
+        actionCount: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: "$user",
+    },
+    {
+      $project: {
+        _id: 0,
+        userId: "$user._id",
+        username: "$user.username",
+        email: "$user.email",
+        actionCount: 1,
+      },
+    },
+    {
+      $sort: { actionCount: -1 },
+    },
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      actionStats: stats,
+      userStats: userStats,
+      dateRange: {
+        start: startDate,
+        end: endDate,
+        days: parseInt(days),
+      },
+    },
+  });
+});
+
+module.exports = {
+  getActivityLogs,
+  getTicketActivityLogs,
+  getActivityTimeline,
+  getActivityStats,
+};

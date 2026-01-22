@@ -1,4 +1,24 @@
 const models = require('../models');
+const { logTicketCreation, logTicketUpdate, logTicketMove, logTicketDeletion, logCommentAddition, logCommentDeletion } = require('../middleware/activityLogger');
+
+/**
+ * Check if user can modify a ticket
+ * Admin, board owner, board member, or ticket assignee can modify
+ */
+async function canModifyTicket(ticketId, userId, userRole) {
+  try {
+    const ticket = await models.Ticket.findById(ticketId).populate('board');
+    if (!ticket) return false;
+    
+    if (userRole === 'admin') return true;
+    if (ticket.assignee && ticket.assignee.toString() === userId.toString()) return true;
+    if (ticket.board.owner.toString() === userId.toString()) return true;
+    if (ticket.board.members && ticket.board.members.some(m => m.toString() === userId.toString())) return true;
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
 
 exports.getMyTickets = async (req, res) => {
   try {
@@ -143,6 +163,11 @@ exports.createTicket = async (req, res) => {
     const { title, description, priority, boardId, columnId, assignee } = req.body;
     if (!title || !boardId || !columnId) return res.status(400).json({ ok: false, error: "Title, boardId, and columnId are required" });
 
+    // Only members and admins can create tickets
+    if (!["admin", "member"].includes(req.user.role)) {
+      return res.status(403).json({ ok: false, error: "Only members and admins can create tickets" });
+    }
+
     const hasAccess = await checkBoardAccess(boardId, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this board" });
 
@@ -164,6 +189,9 @@ exports.createTicket = async (req, res) => {
 
     const populatedTicket = await models.Ticket.findById(ticket._id)
       .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
+    
+    // Log ticket creation activity
+    await logTicketCreation(populatedTicket);
     
     res.status(201).json({ ok: true, data: { ticket: populatedTicket } });
   } catch (error) {
@@ -192,8 +220,15 @@ exports.updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    
+    // Permission check
     const hasAccess = await models.Ticket.canUserAccess(id, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
+    
+    // Only members and admins can modify tickets
+    if (!["admin", "member"].includes(req.user.role)) {
+      return res.status(403).json({ ok: false, error: "Only members and admins can modify tickets" });
+    }
 
     delete updates._id; delete updates.createdAt; delete updates.updatedAt; delete updates.createdBy; delete updates.board;
 
@@ -207,6 +242,10 @@ exports.updateTicket = async (req, res) => {
       .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
 
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
+    
+    // Log ticket update activity
+    await logTicketUpdate(id, req.user._id, ticket.board._id, updates);
+    
     res.json({ ok: true, data: { ticket } });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Failed to update ticket" });
@@ -220,15 +259,28 @@ exports.deleteTicket = async (req, res) => {
     const hasAccess = await models.Ticket.canUserAccess(id, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
 
+    // Only members and admins can delete tickets
+    if (!["admin", "member"].includes(req.user.role)) {
+      return res.status(403).json({ ok: false, error: "Only members and admins can delete tickets" });
+    }
+
     const ticket = await models.Ticket.findById(id);
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
 
     if (hardDelete === 'true' && req.user.role === 'admin') {
       await models.Ticket.findByIdAndDelete(id);
+      
+      // Log hard deletion
+      await logTicketDeletion(id, req.user._id, ticket.board, true);
+      
       res.json({ ok: true, message: "Ticket permanently deleted" });
     } else {
       ticket.deletedAt = new Date();
       await ticket.save();
+      
+      // Log soft deletion
+      await logTicketDeletion(id, req.user._id, ticket.board, false);
+      
       res.json({ ok: true, message: "Ticket deleted" });
     }
   } catch (error) {
@@ -254,6 +306,8 @@ exports.moveTicket = async (req, res) => {
     };
 
     const newStatus = getStatusFromColumn(destinationColumn.title);
+    const oldColumnId = ticket.column._id || ticket.column;
+    const oldIndex = ticket.position;
     let result;
     try {
       const session = await models.Ticket.startSession();
@@ -276,6 +330,10 @@ exports.moveTicket = async (req, res) => {
       result = await models.Ticket.findByIdAndUpdate(id, { column: columnId, position: index, status: newStatus }, { new: true })
         .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
     }
+    
+    // Log ticket move activity
+    await logTicketMove(id, req.user._id, result.board._id, oldColumnId, columnId, oldIndex, index);
+    
     res.json({ ok: true, data: { ticket: result } });
   } catch (error) {
     res.status(500).json({ ok: false, error: `Failed to move ticket` });
@@ -301,6 +359,10 @@ exports.addComment = async (req, res) => {
     await ticket.save();
 
     await comment.populate('author', 'name');
+    
+    // Log comment addition
+    await logCommentAddition(comment._id, req.user._id, id, ticket.board, text.trim());
+    
     res.status(201).json({ ok: true, data: { comment } });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Failed to add comment" });
@@ -317,9 +379,14 @@ exports.deleteComment = async (req, res) => {
       return res.status(403).json({ ok: false, error: "Not authorized to delete this comment" });
     }
 
+    const ticket = await models.Ticket.findById(comment.ticket);
+    
     comment.isDeleted = true;
     comment.text = "This comment has been deleted.";
     await comment.save();
+
+    // Log comment deletion
+    await logCommentDeletion(commentId, req.user._id, comment.ticket, ticket.board);
 
     res.json({ ok: true, message: "Comment deleted" });
   } catch (error) {

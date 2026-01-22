@@ -1,0 +1,23 @@
+{
+  "name": "tasky",
+  "version": "1.0.0",
+  "description": "- [Introduction](#introduction)   - [Purpose](#purpose)   - [About the Customer](#about-the-customer) - [Tech Stack Notice](#tech-stack-notice)   - [MongoDB](#mongodb)   - [Express](#express)   - [React + Vite](#react-vite)   - [Node](#node-js) - [Getting Started](#getting-started) - [Key Docs](#key-docs)",
+  "homepage": "https://github.com/Olu1111/Tasky#readme",
+  "bugs": {
+    "url": "https://github.com/Olu1111/Tasky/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Olu1111/Tasky.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

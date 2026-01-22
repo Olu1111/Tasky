@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const commentController = require('../controllers/comment.controller');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireMember } = require('../middleware/auth');
+
 router.use(requireAuth);
-router.post('/:id/comments', commentController.addComment);
-router.delete('/:id/comments/:commentId', commentController.deleteComment);
+
+// Only members and admins can add and delete comments
+router.post('/:id/comments', requireMember, commentController.addComment);
+router.delete('/:id/comments/:commentId', requireMember, commentController.deleteComment);
+
 module.exports = router; 
