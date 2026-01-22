@@ -10,8 +10,8 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Skip successful requests to avoid blocking legitimate users
-  skipSuccessfulRequests: false,
+  // Only count failed requests to avoid blocking legitimate users
+  skipSuccessfulRequests: true,
 });
 
 // Rate limiting for registration endpoint (slightly more strict)

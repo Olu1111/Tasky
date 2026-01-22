@@ -26,7 +26,7 @@ const auditFormat =
 // Authentication event logger
 function logAuthEvent(req, eventType, details = {}) {
   const timestamp = new Date().toISOString();
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.ip || req.socket?.remoteAddress || "unknown";
   const userAgent = req.get("user-agent") || "unknown";
   
   console.log(

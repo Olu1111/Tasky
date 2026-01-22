@@ -39,9 +39,9 @@ All routes are protected with appropriate middleware:
 #### Validation Middleware
 All authentication endpoints use validation middleware:
 
-- **Email Validation**: Ensures proper email format
-- **Password Strength**: Minimum 6 characters required
-- **Input Sanitization**: Removes potentially dangerous HTML/script tags
+- **Email Validation**: Ensures proper email format using HTML5-compliant regex
+- **Password Strength**: Minimum 8 characters required
+- **Input Sanitization**: Removes potentially dangerous HTML/script tags and event handlers
 - **Email Normalization**: Converts emails to lowercase and trims whitespace
 
 ### 4. Request Logging & Audit Trail
