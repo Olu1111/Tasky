@@ -41,8 +41,10 @@ All authentication endpoints use validation middleware:
 
 - **Email Validation**: Ensures proper email format using HTML5-compliant regex
 - **Password Strength**: Minimum 8 characters required
-- **Input Sanitization**: Removes potentially dangerous HTML/script tags and event handlers
+- **HTML Injection Prevention**: Rejects names containing HTML tags or event handlers
 - **Email Normalization**: Converts emails to lowercase and trims whitespace
+
+Note: The application uses a rejection-based approach for security rather than attempting to sanitize malicious input. This prevents bypasses and is more secure than regex-based sanitization.
 
 ### 4. Request Logging & Audit Trail
 

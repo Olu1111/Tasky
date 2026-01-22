@@ -7,14 +7,10 @@ function validateEmail(email) {
   return emailRegex.test(email);
 }
 
-function sanitizeInput(input) {
-  if (typeof input !== 'string') return input;
-  // Basic sanitization - remove common XSS patterns
-  // Note: For production, consider using a library like validator.js or DOMPurify
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, ''); // Remove event handlers
+function containsHtml(input) {
+  if (typeof input !== 'string') return false;
+  // Check for HTML tags and event handlers
+  return /<[^>]*>/.test(input) || /on\w+\s*=/i.test(input);
 }
 
 // Validate registration input
@@ -36,6 +32,14 @@ function validateRegistration(req, res, next) {
     });
   }
 
+  // Reject input containing HTML tags or scripts
+  if (containsHtml(name)) {
+    return res.status(400).json({ 
+      ok: false, 
+      error: "Name cannot contain HTML tags" 
+    });
+  }
+
   // Password strength check - minimum 8 characters recommended
   if (password.length < 8) {
     return res.status(400).json({ 
@@ -44,8 +48,8 @@ function validateRegistration(req, res, next) {
     });
   }
 
-  // Sanitize name input
-  req.body.name = sanitizeInput(name);
+  // Normalize inputs (don't sanitize, just normalize)
+  req.body.name = name.trim();
   req.body.email = email.toLowerCase().trim();
 
   next();
@@ -79,5 +83,4 @@ function validateLogin(req, res, next) {
 module.exports = {
   validateRegistration,
   validateLogin,
-  sanitizeInput,
 };
