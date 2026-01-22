@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/error");
+const { devFormat, auditFormat } = require("./middleware/logger");
 
 function createApp({ corsOrigin }) {
   const app = express();
@@ -21,8 +22,9 @@ function createApp({ corsOrigin }) {
     })
   );
 
-  // Logging
-  app.use(morgan("dev"));
+  // Enhanced logging for audit trail
+  const logFormat = process.env.NODE_ENV === "production" ? auditFormat : devFormat;
+  app.use(morgan(logFormat));
 
   // Simple rate limit (MVP-level)
   app.use(

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const models = require("../models");
 const { asyncHandler } = require("../utils/asyncHandler");
+const { logAuthEvent } = require("../middleware/logger");
 
 // POST Helper to sign tokens
 function signToken(user) {
@@ -14,29 +15,34 @@ function signToken(user) {
 const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body; 
   
-  if (!name || !email || !password) {
-    return res.status(400).json({ ok: false, error: "Missing fields" });
-  }
+  // Validation is handled by middleware
 
   const exists = await models.User.findOne({ email });
-  if (exists) return res.status(409).json({ ok: false, error: "Email already in use" });
+  if (exists) {
+    logAuthEvent(req, "REGISTER_FAILED", { reason: "email_exists", email });
+    return res.status(409).json({ ok: false, error: "Email already in use" });
+  }
 
   const user = await models.User.create({ name, email, password });
   const token = signToken(user);
+  logAuthEvent(req, "REGISTER_SUCCESS", { userId: user._id.toString(), email });
   return res.status(201).json({ ok: true, data: { user: user.toJSON(), token } });
 });
 
 // /api/auth/login
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ ok: false, error: "Missing email/password" });
+  
+  // Validation is handled by middleware
 
   const user = await models.User.findOne({ email });
   if (!user || !(await user.comparePassword(password))) {
+    logAuthEvent(req, "LOGIN_FAILED", { reason: "invalid_credentials", email });
     return res.status(401).json({ ok: false, error: "Invalid credentials" });
   }
 
   const token = signToken(user);
+  logAuthEvent(req, "LOGIN_SUCCESS", { userId: user._id.toString(), email });
   return res.json({ ok: true, data: { user: user.toJSON(), token } });
 });
 
