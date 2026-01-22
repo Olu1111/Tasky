@@ -73,6 +73,14 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
     if (isOpen) fetchUsers();
   }, [isOpen]);
 
+  // 🎯 KEYBOARD SHORTCUTS: Ctrl/Cmd + Enter to Save
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
   const handleAddComment = async (text) => {
     const token = localStorage.getItem('token');
     const res = await fetch(`http://localhost:4000/api/tickets/${ticket._id}/comments`, {
@@ -89,6 +97,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
 
   const handleDeleteComment = async (commentId) => {
     const token = localStorage.getItem('token');
+    // 🎯 ROUTE FIX: Ensure the URL matches the nested backend route structure
     const res = await fetch(`http://localhost:4000/api/tickets/${ticket._id}/comments/${commentId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
@@ -132,11 +141,12 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
   try {
     if (token) {
       const payload = JSON.parse(atob(token.split('.')[1]));
+      // 🎯 AUTH FIX: Using 'sub' to match backend's req.user._id
       currentUserId = payload.sub || payload.id || payload._id; 
       currentUserRole = payload.role;
     }
   } catch { 
-    // Error logic here
+    console.error("Token parsing failed");
   }
 
   return (
@@ -144,11 +154,12 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
       open={isOpen} 
       onClose={onClose} 
       fullWidth 
-      maxWidth="sm"
+      maxWidth="sm" 
       disableRestoreFocus
+      onKeyDown={handleKeyDown}
     >
       <DialogTitle component="div">
-        <Typography variant="h6" component="span" fontWeight="800">Edit Task</Typography>
+        <Typography variant="h6" component="div" fontWeight="800">Edit Task</Typography>
       </DialogTitle>
       
       <DialogContent dividers>
@@ -171,12 +182,17 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
             <MenuItem value=""><ListItemIcon><Avatar sx={{ width: 24, height: 24, bgcolor: '#eee' }}>-</Avatar></ListItemIcon><ListItemText primary="None (Unassigned)" /></MenuItem>
             {teamMembers.map((u) => (
               <MenuItem key={u._id} value={u._id}>
-                <ListItemIcon><Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600, bgcolor: getAvatarColor(u._id, u.name) }}>{u.name?.[0]?.toUpperCase()}</Avatar></ListItemIcon>
+                <ListItemIcon>
+                  <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem', fontWeight: 600, bgcolor: getAvatarColor(u._id, u.name) }}>
+                    {u.name?.[0]?.toUpperCase()}
+                  </Avatar>
+                </ListItemIcon>
                 <ListItemText primary={u.name} />
               </MenuItem>
             ))}
           </TextField>
           <Divider sx={{ my: 1 }} />
+          {/* 🎯 PASSING CORRECT IDs: currentUserId is now mapped from 'sub' */}
           <CommentThread 
             comments={localComments} 
             onAddComment={handleAddComment} 

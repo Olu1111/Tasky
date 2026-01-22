@@ -67,18 +67,15 @@ const ticketSchema = new Schema(
   { timestamps: true }
 );
 
-// Indexes for performance
-ticketSchema.index({ board: 1, column: 1, position: 1 }); // For ordering tickets within columns
-ticketSchema.index({ assignee: 1 }); // For filtering by assignee
-ticketSchema.index({ createdBy: 1 }); // For filtering by creator
-ticketSchema.index({ createdAt: -1 }); // For sorting by creation date
-
-// Validation: Ensure assignee is a valid user if provided
+ticketSchema.index({ board: 1, column: 1, position: 1 }); 
+ticketSchema.index({ assignee: 1 }); 
+ticketSchema.index({ createdBy: 1 }); 
+ticketSchema.index({ createdAt: -1 });
+ticketSchema.index({ title: "text", description: "text" });
 ticketSchema.pre("save", async function () {
-  // Only validate if assignee exists
+
   if (!this.assignee) return;
 
-  // Avoid circular import issues: register User model before Ticket model
   const User = mongoose.model("User");
 
   const userExists = await User.exists({ _id: this.assignee });
@@ -92,11 +89,10 @@ ticketSchema.pre("save", async function () {
         value: this.assignee,
       })
     );
-    throw err; // This correctly fails the save
+    throw err; 
   }
 });
 
-// Instance method to get ticket with populated references
 ticketSchema.methods.populateDetails = async function() {
   return await this.populate([
     { path: 'assignee', select: 'name email' },
@@ -107,7 +103,6 @@ ticketSchema.methods.populateDetails = async function() {
   ]);
 };
 
-// Static method to sync status for existing tickets
 ticketSchema.statics.syncStatusWithColumn = async function() {
   const tickets = await this.find({ deletedAt: null }).populate('column');
   
@@ -131,21 +126,17 @@ ticketSchema.statics.syncStatusWithColumn = async function() {
   console.log('Status sync completed for existing tickets');
 };
 
-// Static method to check if user can access ticket
 ticketSchema.statics.canUserAccess = async function(ticketId, userId) {
   const ticket = await this.findById(ticketId).populate('board');
   if (!ticket || ticket.deletedAt) return false;
   const board = ticket.board;
   return board.owner.toString() === userId.toString() || 
-         (board.members && board.members.some(member => member.toString() === userId.toString()));
+          (board.members && board.members.some(member => member.toString() === userId.toString()));
 };
-
-// Virtual for soft delete
 ticketSchema.virtual('isDeleted').get(function() {
   return !!this.deletedAt;
 });
 
-// Ensure virtual fields are serialized
 ticketSchema.set('toJSON', { virtuals: true });
 ticketSchema.set('toObject', { virtuals: true });
 
