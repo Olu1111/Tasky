@@ -1,29 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Card, CardContent, Chip, Skeleton, Container, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '../utils/apiClient';
 
 const MyTicketsPage = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchMyTickets = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:4000/api/tickets/mine', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+  const fetchMyTickets = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/tickets/mine');
+      
+      if (response?.ok) {
         const json = await response.json();
-        if (json.ok) setTickets(json.data.tickets);
-      } catch (error) {
-        console.error("Failed to load tickets:", error);
-      } finally {
-        setLoading(false);
+        setTickets(json.data.tickets || []);
       }
-    };
-    fetchMyTickets();
+    } catch (error) {
+      console.error("Failed to load tickets:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchMyTickets();
+  }, [fetchMyTickets]);
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, pb: 4 }}>
@@ -38,7 +41,7 @@ const MyTicketsPage = () => {
           {tickets.map((ticket) => (
             <Card 
               key={ticket._id} 
-              onClick={() => navigate(`/boards/${ticket.board._id}`)}
+              onClick={() => navigate(`/boards/${ticket.board?._id}`)}
               sx={{ 
                 borderRadius: '12px', 
                 cursor: 'pointer', 
@@ -59,8 +62,8 @@ const MyTicketsPage = () => {
                   {ticket.description || "No description provided."}
                 </Typography>
                 <Box mt={2} display="flex" gap={1}>
-                  <Chip label={`Board: ${ticket.board?.title}`} variant="outlined" size="small" />
-                  <Chip label={`Status: ${ticket.column?.title}`} variant="outlined" size="small" />
+                  <Chip label={`Board: ${ticket.board?.title || 'N/A'}`} variant="outlined" size="small" />
+                  <Chip label={`Status: ${ticket.column?.title || 'N/A'}`} variant="outlined" size="small" />
                 </Box>
               </CardContent>
             </Card>

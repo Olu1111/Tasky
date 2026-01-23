@@ -5,6 +5,8 @@ import {
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'; 
 import { useNavigate } from 'react-router-dom';
+// --- NEW IMPORT ---
+import { apiClient } from '../utils/apiClient';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -17,24 +19,15 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:4000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      // APICLIENT: Automatically handles headers, retries, and error toasts
+      const response = await apiClient.post('/auth/login', { email, password });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+      if (response?.ok) {
+        const data = await response.json();
+        localStorage.setItem('token', data.data.token); 
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        navigate('/boards');
       }
-
-      // This saves the token so other pages can use it
-      localStorage.setItem('token', data.data.token); 
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-
-navigate('/boards');
-
     } catch (err) {
       console.error(err);
       setError(err.message);

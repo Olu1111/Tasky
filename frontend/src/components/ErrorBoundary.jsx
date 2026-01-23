@@ -5,28 +5,40 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an error", error, errorInfo);
+    console.group('%c🛡️ Global Error Boundary', 'color: #d32f2f; font-weight: bold;');
+    console.error("Caught error:", error);
+    console.error("Component Stack:", errorInfo.componentStack);
+    console.groupEnd();
   }
+
+  handleReload = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
 
   render() {
     if (this.state.hasError) {
+      const isDev = 
+        (typeof window !== 'undefined' && window?.location?.hostname === 'localhost') ||
+        (import.meta.env && import.meta.env.DEV);
+
       return (
         <Box 
           display="flex" 
           flexDirection="column" 
           alignItems="center" 
           justifyContent="flex-start" 
-          height="100vh"              
+          height="100vh"               
           textAlign="center"
-          pt={15}                    
+          pt={15}                     
           p={3}
         >
           <ErrorOutlineIcon sx={{ fontSize: 80, color: '#d32f2f', mb: 2 }} />
@@ -37,10 +49,9 @@ class ErrorBoundary extends React.Component {
             The page crashed unexpectedly. Try refreshing or going back.
           </Typography>
 
-          {/* REFRESH BUTTON */}
           <Button
             variant="contained"
-            onClick={() => window.location.reload()}
+            onClick={this.handleReload}
             sx={{
               bgcolor: '#424242', 
               color: '#ffffff',
@@ -58,13 +69,31 @@ class ErrorBoundary extends React.Component {
             Reload Page
           </Button>
 
-          {/* SAFETY LINK */}
           <Link 
             href="/boards" 
             sx={{ mt: 3, color: 'text.secondary', textDecoration: 'underline', cursor: 'pointer' }}
           >
             Go back to My Boards
           </Link>
+
+          {/* DEVELOPER DEBUGGING: Only shows in local development */}
+          {isDev && (
+            <Box 
+              sx={{ 
+                mt: 6, 
+                p: 2, 
+                bgcolor: '#fafafa', 
+                border: '1px solid #eee', 
+                borderRadius: '8px', 
+                maxWidth: '80%', 
+                textAlign: 'left' 
+              }}
+            >
+              <Typography variant="caption" color="error" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                DEBUG: {this.state.error?.toString()}
+              </Typography>
+            </Box>
+          )}
         </Box>
       );
     }

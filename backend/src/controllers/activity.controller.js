@@ -1,6 +1,6 @@
 /**
  * Activity Controller
- * Handles retrieving activity logs
+ * Handles retrieving and clearing activity logs
  */
 
 const models = require("../models");
@@ -8,7 +8,7 @@ const { asyncHandler } = require("../utils/asyncHandler");
 
 /**
  * Get activity logs for a board
- * GET /api/boards/:boardId/activity
+ * GET /api/activity/boards/:boardId/activity
  */
 const getActivityLogs = asyncHandler(async (req, res) => {
   const { boardId } = req.params;
@@ -54,7 +54,7 @@ const getActivityLogs = asyncHandler(async (req, res) => {
 
 /**
  * Get activity logs for a specific ticket
- * GET /api/tickets/:ticketId/activity
+ * GET /api/activity/tickets/:ticketId/activity
  */
 const getTicketActivityLogs = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
@@ -89,7 +89,7 @@ const getTicketActivityLogs = asyncHandler(async (req, res) => {
 
 /**
  * Get detailed timeline of activity for a board with user info
- * GET /api/boards/:boardId/activity/timeline
+ * GET /api/activity/boards/:boardId/timeline
  */
 const getActivityTimeline = asyncHandler(async (req, res) => {
   const { boardId } = req.params;
@@ -132,7 +132,7 @@ const getActivityTimeline = asyncHandler(async (req, res) => {
 
 /**
  * Get activity summary/stats for a board
- * GET /api/boards/:boardId/activity/stats
+ * GET /api/activity/boards/:boardId/stats
  */
 const getActivityStats = asyncHandler(async (req, res) => {
   const { boardId } = req.params;
@@ -214,9 +214,30 @@ const getActivityStats = asyncHandler(async (req, res) => {
   });
 });
 
+
+const clearActivityLogs = asyncHandler(async (req, res) => {
+  const { boardId } = req.params;
+  const board = await models.Board.findById(boardId);
+  if (!board) {
+    return res.status(404).json({
+      success: false,
+      message: "Board not found",
+    });
+  }
+
+  const result = await models.ActivityLog.deleteMany({ boardId });
+
+  res.json({
+    success: true,
+    message: "Activity logs cleared successfully",
+    count: result.deletedCount,
+  });
+});
+
 module.exports = {
   getActivityLogs,
   getTicketActivityLogs,
   getActivityTimeline,
   getActivityStats,
+  clearActivityLogs, 
 };
