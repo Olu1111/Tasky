@@ -1,4 +1,5 @@
 const models = require("../models");
+const ActivityLog = require("../models/ActivityLog"); // 🎯 ADDED
 const { asyncHandler } = require("../utils/asyncHandler");
 const { logBoardCreation, logBoardDeletion } = require("../middleware/activityLogger");
 
@@ -27,7 +28,6 @@ const getBoardById = asyncHandler(async (req, res) => {
     const board = await models.Board.findById(id).populate("owner members", "name email role");
     if (!board) return res.status(404).json({ ok: false, error: "Board not found" });
     
-    // Check access
     if (!canAccessBoard(req.user, board)) {
       return res.status(403).json({ ok: false, error: "You do not have access to this board" });
     }
@@ -45,10 +45,8 @@ const listBoards = asyncHandler(async (req, res) => {
   try {
     let boards;
     if (actor.role === "admin") {
-      // Admins see all boards
       boards = await models.Board.find().sort({ createdAt: -1 }).populate("owner members", "name email role");
     } else {
-      // Members/viewers see only boards they own or are members of
       boards = await models.Board.find({ 
         $or: [{ owner: actor._id }, { members: actor._id }] 
       }).sort({ createdAt: -1 }).populate("owner members", "name email role");
@@ -60,14 +58,12 @@ const listBoards = asyncHandler(async (req, res) => {
   }
 });
 
-// POST /api/boards - Only members and admins can create
 const createBoard = asyncHandler(async (req, res) => {
   const { title, description } = req.body;
   if (!title || typeof title !== "string" || !title.trim()) {
     return res.status(400).json({ ok: false, error: "`title` is required" });
   }
 
-  // Only members and admins can create boards
   if (!["admin", "member"].includes(req.user.role)) {
     return res.status(403).json({ ok: false, error: "Only members and admins can create boards" });
   }
@@ -86,7 +82,15 @@ const createBoard = asyncHandler(async (req, res) => {
     const colsToCreate = columnsData.map((t, i) => ({ title: t, board: board._id, position: i }));
     const createdColumns = await models.Column.insertMany(colsToCreate);
 
-    // Log board creation activity
+    await ActivityLog.create({
+      action: "board.create",
+      userId: req.user._id,
+      entityType: "board",
+      entityId: board._id,
+      entityName: board.title,
+      boardId: board._id
+    });
+
     await logBoardCreation(board._id, req.user._id, title.trim());
 
     return res.status(201).json({ ok: true, data: { board, columns: createdColumns } });
@@ -99,7 +103,6 @@ const createBoard = asyncHandler(async (req, res) => {
 
 const deleteBoard = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user._id;
 
   try {
     const board = await models.Board.findById(id);
@@ -107,16 +110,23 @@ const deleteBoard = asyncHandler(async (req, res) => {
       return res.status(404).json({ ok: false, error: "Board not found" });
     }
 
-    // Check if user can modify board
     if (!canModifyBoard(req.user, board)) {
       return res.status(403).json({ ok: false, error: "You do not have permission to delete this board" });
     }
+
+    await ActivityLog.create({
+      action: "board.delete",
+      userId: req.user._id,
+      entityType: "board",
+      entityId: id,
+      entityName: board.title,
+      boardId: id
+    });
 
     await models.Board.findByIdAndDelete(id);
     await models.Column.deleteMany({ board: id });
     await models.Ticket.deleteMany({ board: id });
 
-    // Log board deletion activity
     await logBoardDeletion(id, req.user._id);
 
     return res.json({ ok: true, message: "Board and all associated data deleted" });

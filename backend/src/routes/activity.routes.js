@@ -1,27 +1,17 @@
-/**
- * Activity Routes
- * Routes for accessing activity logs and audit trail
- */
-
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { requireAuth, requireMember } = require("../middleware/auth");
-const activityController = require("../controllers/activity.controller");
+const activityController = require('../controllers/activity.controller');
+const authMiddleware = require('../middleware/auth');
+const protect = authMiddleware.protect || authMiddleware.requireAuth;
 
-// Get activity logs for a board
-// GET /api/boards/:boardId/activity
-router.get("/boards/:boardId/activity", requireAuth, activityController.getActivityLogs);
+if (!protect) {
+  console.error("❌ CRITICAL ERROR: Auth middleware not found. Check if your file exports 'protect' or 'requireAuth'");
+}
 
-// Get activity timeline grouped by date
-// GET /api/boards/:boardId/activity/timeline
-router.get("/boards/:boardId/activity/timeline", requireAuth, activityController.getActivityTimeline);
-
-// Get activity stats and summary
-// GET /api/boards/:boardId/activity/stats
-router.get("/boards/:boardId/activity/stats", requireAuth, activityController.getActivityStats);
-
-// Get activity logs for a specific ticket
-// GET /api/tickets/:ticketId/activity
-router.get("/tickets/:ticketId/activity", requireAuth, activityController.getTicketActivityLogs);
+// Routes
+router.get('/boards/:boardId/activity', protect, activityController.getActivityLogs);
+router.get('/tickets/:ticketId/activity', protect, activityController.getTicketActivityLogs);
+router.get('/boards/:boardId/timeline', protect, activityController.getActivityTimeline);
+router.get('/boards/:boardId/stats', protect, activityController.getActivityStats);
 
 module.exports = router;

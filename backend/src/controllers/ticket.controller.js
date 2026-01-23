@@ -1,4 +1,5 @@
 const models = require('../models');
+const ActivityLog = require('../models/ActivityLog'); // Import the ActivityLog model directly
 const { logTicketCreation, logTicketUpdate, logTicketMove, logTicketDeletion, logCommentAddition, logCommentDeletion } = require('../middleware/activityLogger');
 
 /**
@@ -163,7 +164,6 @@ exports.createTicket = async (req, res) => {
     const { title, description, priority, boardId, columnId, assignee } = req.body;
     if (!title || !boardId || !columnId) return res.status(400).json({ ok: false, error: "Title, boardId, and columnId are required" });
 
-    // Only members and admins can create tickets
     if (!["admin", "member"].includes(req.user.role)) {
       return res.status(403).json({ ok: false, error: "Only members and admins can create tickets" });
     }
@@ -190,7 +190,16 @@ exports.createTicket = async (req, res) => {
     const populatedTicket = await models.Ticket.findById(ticket._id)
       .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
     
-    // Log ticket creation activity
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "ticket.create",
+      userId: req.user._id,
+      entityType: "ticket",
+      entityId: ticket._id,
+      entityName: ticket.title,
+      boardId: boardId
+    });
+
     await logTicketCreation(populatedTicket);
     
     res.status(201).json({ ok: true, data: { ticket: populatedTicket } });
@@ -221,11 +230,9 @@ exports.updateTicket = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
-    // Permission check
     const hasAccess = await models.Ticket.canUserAccess(id, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
     
-    // Only members and admins can modify tickets
     if (!["admin", "member"].includes(req.user.role)) {
       return res.status(403).json({ ok: false, error: "Only members and admins can modify tickets" });
     }
@@ -243,7 +250,17 @@ exports.updateTicket = async (req, res) => {
 
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
     
-    // Log ticket update activity
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "ticket.update",
+      userId: req.user._id,
+      entityType: "ticket",
+      entityId: ticket._id,
+      entityName: ticket.title,
+      boardId: ticket.board._id,
+      metadata: updates
+    });
+
     await logTicketUpdate(id, req.user._id, ticket.board._id, updates);
     
     res.json({ ok: true, data: { ticket } });
@@ -259,7 +276,6 @@ exports.deleteTicket = async (req, res) => {
     const hasAccess = await models.Ticket.canUserAccess(id, req.user._id);
     if (!hasAccess) return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
 
-    // Only members and admins can delete tickets
     if (!["admin", "member"].includes(req.user.role)) {
       return res.status(403).json({ ok: false, error: "Only members and admins can delete tickets" });
     }
@@ -267,20 +283,24 @@ exports.deleteTicket = async (req, res) => {
     const ticket = await models.Ticket.findById(id);
     if (!ticket) return res.status(404).json({ ok: false, error: "Ticket not found" });
 
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "ticket.delete",
+      userId: req.user._id,
+      entityType: "ticket",
+      entityId: ticket._id,
+      entityName: ticket.title,
+      boardId: ticket.board
+    });
+
     if (hardDelete === 'true' && req.user.role === 'admin') {
       await models.Ticket.findByIdAndDelete(id);
-      
-      // Log hard deletion
       await logTicketDeletion(id, req.user._id, ticket.board, true);
-      
       res.json({ ok: true, message: "Ticket permanently deleted" });
     } else {
       ticket.deletedAt = new Date();
       await ticket.save();
-      
-      // Log soft deletion
       await logTicketDeletion(id, req.user._id, ticket.board, false);
-      
       res.json({ ok: true, message: "Ticket deleted" });
     }
   } catch (error) {
@@ -331,7 +351,17 @@ exports.moveTicket = async (req, res) => {
         .populate('assignee', 'name email').populate('createdBy', 'name email').populate('board', 'title').populate('column', 'title');
     }
     
-    // Log ticket move activity
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "ticket.move",
+      userId: req.user._id,
+      entityType: "ticket",
+      entityId: result._id,
+      entityName: result.title,
+      boardId: result.board._id,
+      metadata: { fromColumn: oldColumnId, toColumn: columnId }
+    });
+
     await logTicketMove(id, req.user._id, result.board._id, oldColumnId, columnId, oldIndex, index);
     
     res.json({ ok: true, data: { ticket: result } });
@@ -360,7 +390,16 @@ exports.addComment = async (req, res) => {
 
     await comment.populate('author', 'name');
     
-    // Log comment addition
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "comment.add",
+      userId: req.user._id,
+      entityType: "comment",
+      entityId: comment._id,
+      entityName: ticket.title, // Associated with the ticket name
+      boardId: ticket.board
+    });
+
     await logCommentAddition(comment._id, req.user._id, id, ticket.board, text.trim());
     
     res.status(201).json({ ok: true, data: { comment } });
@@ -381,11 +420,20 @@ exports.deleteComment = async (req, res) => {
 
     const ticket = await models.Ticket.findById(comment.ticket);
     
+    // TRIGGER NOTIFICATION
+    await ActivityLog.create({
+      action: "comment.delete",
+      userId: req.user._id,
+      entityType: "comment",
+      entityId: comment._id,
+      entityName: ticket.title,
+      boardId: ticket.board
+    });
+
     comment.isDeleted = true;
     comment.text = "This comment has been deleted.";
     await comment.save();
 
-    // Log comment deletion
     await logCommentDeletion(commentId, req.user._id, comment.ticket, ticket.board);
 
     res.json({ ok: true, message: "Comment deleted" });

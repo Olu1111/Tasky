@@ -1,4 +1,5 @@
 const models = require("../models");
+const ActivityLog = require("../models/ActivityLog"); // 🎯 ADDED
 const { asyncHandler } = require("../utils/asyncHandler");
 
 /**
@@ -17,26 +18,23 @@ const canModifyBoard = async (boardId, user) => {
 };
 
 const addColumn = asyncHandler(async (req, res) => {
-  const boardId = req.params.id; // grabs board ID from URL
+  const boardId = req.params.id; 
   const { title } = req.body;
 
   if (!title || !title.trim()) {
     return res.status(400).json({ ok: false, error: "Title is required" });
   }
 
-  // Check if user can modify this board
   const hasPermission = await canModifyBoard(boardId, req.user);
   if (!hasPermission) {
     return res.status(403).json({ ok: false, error: "You do not have permission to modify this board" });
   }
 
-  // Verify board exists
   const board = await models.Board.findById(boardId);
   if (!board) {
     return res.status(404).json({ ok: false, error: "Board not found" });
   }
 
-  // Determine position: find the count and put it at the end
   const columnCount = await models.Column.countDocuments({ board: boardId });
   
   const column = await models.Column.create({
@@ -45,14 +43,21 @@ const addColumn = asyncHandler(async (req, res) => {
     position: columnCount
   });
 
-  // Frontend expects data.column
+  await ActivityLog.create({
+    action: "column.create",
+    userId: req.user._id,
+    entityType: "column",
+    entityId: column._id,
+    entityName: column.title,
+    boardId: boardId
+  });
+
   return res.status(201).json({ ok: true, data: { column } });
 });
 
 const listColumnsByBoard = asyncHandler(async (req, res) => {
   const boardId = req.params.id;
 
-  // Verify user has access to the board
   const board = await models.Board.findById(boardId);
   if (!board) {
     return res.status(404).json({ ok: false, error: "Board not found" });
@@ -66,7 +71,6 @@ const listColumnsByBoard = asyncHandler(async (req, res) => {
     return res.status(403).json({ ok: false, error: "You do not have access to this board" });
   }
 
-  // Fetch all columns for this board
   const columns = await models.Column.find({ board: boardId }).sort("position");
   const columnsWithItems = await Promise.all(columns.map(async (col) => {
     const tickets = await models.Ticket.find({ column: col._id }).sort("position");
@@ -83,13 +87,22 @@ const updateColumn = asyncHandler(async (req, res) => {
   const column = await models.Column.findById(id);
   if (!column) return res.status(404).json({ ok: false, error: "Column not found" });
 
-  // Check if user can modify the board this column belongs to
   const hasPermission = await canModifyBoard(column.board, req.user);
   if (!hasPermission) {
     return res.status(403).json({ ok: false, error: "You do not have permission to modify this column" });
   }
 
   const updatedColumn = await models.Column.findByIdAndUpdate(id, { title }, { new: true });
+
+  await ActivityLog.create({
+    action: "column.update",
+    userId: req.user._id,
+    entityType: "column",
+    entityId: id,
+    entityName: updatedColumn.title,
+    boardId: updatedColumn.board
+  });
+
   res.json({ ok: true, data: { column: updatedColumn } });
 });
 
@@ -99,11 +112,20 @@ const deleteColumn = asyncHandler(async (req, res) => {
   const column = await models.Column.findById(id);
   if (!column) return res.status(404).json({ ok: false, error: "Column not found" });
 
-  // Check if user can modify the board this column belongs to
   const hasPermission = await canModifyBoard(column.board, req.user);
   if (!hasPermission) {
     return res.status(403).json({ ok: false, error: "You do not have permission to delete this column" });
   }
+
+
+  await ActivityLog.create({
+    action: "column.delete",
+    userId: req.user._id,
+    entityType: "column",
+    entityId: id,
+    entityName: column.title,
+    boardId: column.board
+  });
 
   await models.Column.findByIdAndDelete(id);
   res.json({ ok: true, data: { message: "Deleted" } });

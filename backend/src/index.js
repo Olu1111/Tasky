@@ -7,7 +7,7 @@ router.use("/boards", require("./boards.routes"));
 router.use("/columns", require("./columns.routes"));
 router.use("/tickets", require("./ticket.routes"));
 router.use("/comments", require("./comment.routes"));
-// Minimal API root
+router.use("/activity", require("./activity.routes"));
 router.get("/", (req, res) => {
   res.json({ ok: true, message: "API root" });
 });

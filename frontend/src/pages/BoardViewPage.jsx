@@ -9,7 +9,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete'; 
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -85,6 +84,10 @@ const BoardViewPage = () => {
   const { id } = useParams();
   const isAdmin = true;
 
+  const triggerNotificationSync = useCallback(() => {
+    window.dispatchEvent(new Event('refreshNotifications'));
+  }, []);
+
   const getAssigneeDetails = useCallback((assigneeData) => {
     if (!assigneeData) return null;
     const assigneeId = assigneeData._id || assigneeData;
@@ -94,7 +97,7 @@ const BoardViewPage = () => {
   const fetchData = useCallback(async (isSilent = false) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return; // Guard against fetching without a token
+      if (!token) return;
 
       if (!isSilent) setLoading(true); 
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -193,11 +196,12 @@ const BoardViewPage = () => {
         })
       ));
       
-      setSnackbar({ open: true, message: `Successfully deleted ${selectedTicketIds.length} tasks`, severity: 'success' });
+      setSnackbar({ open: true, message: `Successfully deleted tasks`, severity: 'success' });
       setSelectedTicketIds([]);
       fetchData(true);
+      triggerNotificationSync();
     } catch (error) {
-      console.error("Bulk delete failed:", error);
+      console.error("Bulk delete failed:", error); // FIX: Variable now used
       setSnackbar({ open: true, message: 'Bulk delete failed', severity: 'error' });
     }
   };
@@ -209,6 +213,7 @@ const BoardViewPage = () => {
         items: col.items.filter(item => item._id !== ticketId)
       })));
       setSnackbar({ open: true, message: 'Task deleted successfully', severity: 'success' });
+      triggerNotificationSync();
       return;
     }
 
@@ -222,8 +227,9 @@ const BoardViewPage = () => {
 
       if (response.status === 401) navigate('/login');
       fetchData(true);
+      triggerNotificationSync();
     } catch (error) { 
-      console.error(error); 
+      console.error("Update failed:", error); 
     }
   };
 
@@ -261,8 +267,9 @@ const BoardViewPage = () => {
       });
 
       if (response.status === 401) navigate('/login');
+      triggerNotificationSync();
     } catch (error) {
-      console.error(error); 
+      console.error("Move sync failed:", error); // FIX: Variable now used
       fetchData(true);
       setSnackbar({ open: true, message: 'Failed to sync move. Reverting...', severity: 'error' });
     }
@@ -290,8 +297,9 @@ const BoardViewPage = () => {
       fetchData(true); 
       setIsTicketModalOpen(false);
       setSnackbar({ open: true, message: 'Ticket created successfully!', severity: 'success' });
+      triggerNotificationSync();
     } catch (error) { 
-      console.error(error); 
+      console.error("Creation failed:", error); 
       setSnackbar({ open: true, message: 'Network error', severity: 'error' });
     }
   };
@@ -306,9 +314,11 @@ const BoardViewPage = () => {
       });
 
       if (response.status === 401) navigate('/login');
-      fetchData(true); setIsColumnModalOpen(false);
+      fetchData(true); 
+      setIsColumnModalOpen(false);
+      triggerNotificationSync();
     } catch (error) { 
-      console.error(error); 
+      console.error("Column add failed:", error); 
     }
   };
 
@@ -323,8 +333,9 @@ const BoardViewPage = () => {
 
       if (response.status === 401) navigate('/login');
       fetchData(true);
+      triggerNotificationSync();
     } catch (error) { 
-      console.error(error); 
+      console.error("Rename failed:", error); 
     }
   };
 
@@ -337,9 +348,11 @@ const BoardViewPage = () => {
       });
 
       if (response.status === 401) navigate('/login');
-      setIsDeleteModalOpen(false); fetchData(true);
+      setIsDeleteModalOpen(false); 
+      fetchData(true);
+      triggerNotificationSync();
     } catch (error) { 
-      console.error(error); 
+      console.error("Delete failed:", error); 
     }
   };
 
@@ -355,9 +368,7 @@ const BoardViewPage = () => {
       width: '100vw',
       overflow: 'hidden',
       bgcolor: '#fff',
-      position: 'fixed', 
-      top: 64, 
-      left: 0
+      position: 'relative'
     }}>
 
       <Box sx={{ px: 4, pt: 2, pb: 1, flexShrink: 0 }}>
@@ -399,16 +410,16 @@ const BoardViewPage = () => {
               flexDirection: 'column'
             }}>
               <Box display="flex" justifyContent="space-between" mb={2} sx={{ flexShrink: 0 }}>
-                 <input 
-                   defaultValue={column.title} 
-                   onBlur={(e) => handleRenameColumn(column._id, e.target.value)} 
-                   style={{ background: 'transparent', border: 'none', fontWeight: '700', outline: 'none', width: '70%' }}
-                 />
-                 {isAdmin && (
-                   <IconButton size="small" onClick={() => { setColumnToDelete(column); setIsDeleteModalOpen(true); }}>
-                     <DeleteIcon fontSize="small" />
-                   </IconButton>
-                 )}
+                  <input 
+                    defaultValue={column.title} 
+                    onBlur={(e) => handleRenameColumn(column._id, e.target.value)} 
+                    style={{ background: 'transparent', border: 'none', fontWeight: '700', outline: 'none', width: '70%' }}
+                  />
+                  {isAdmin && (
+                    <IconButton size="small" onClick={() => { setColumnToDelete(column); setIsDeleteModalOpen(true); }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
               </Box>
 
               <Droppable droppableId={column._id}>
@@ -416,7 +427,7 @@ const BoardViewPage = () => {
                   <Box 
                     ref={provided.innerRef} 
                     {...provided.droppableProps} 
-                    sx={{ flexGrow: 1, overflowY: 'auto', minHeight: '10px', pr: 0.5 }}
+                    sx={{ flexGrow: 1, overflowY: 'visible', minHeight: '10px', pr: 0.5 }} // FIX: nested scroll
                   >
                     {column.items && column.items.length === 0 && (
                       <EmptyColumnState />
@@ -428,15 +439,20 @@ const BoardViewPage = () => {
 
                       return (
                         <Draggable key={task._id} draggableId={task._id} index={index}>
-                          {(provided) => (
+                          {(provided, snapshot) => (
                             <Card 
                               ref={provided.innerRef} 
                               {...provided.draggableProps} 
+                              {...provided.dragHandleProps}
                               onClick={() => { setSelectedTicket(task); setIsEditModalOpen(true); }}
                               sx={{ 
-                                mb: 1.5, borderRadius: '8px', cursor: 'pointer', position: 'relative',
+                                mb: 1.5, 
+                                borderRadius: '8px', 
+                                cursor: 'pointer', 
+                                position: 'relative',
                                 border: isSelected ? '2px solid #263238' : '2px solid transparent',
                                 transition: 'all 0.2s ease',
+                                boxShadow: snapshot.isDragging ? '0 5px 15px rgba(0,0,0,0.3)' : undefined,
                                 '&:hover .drag-handle': { opacity: 1 },
                                 '&:hover .selection-checkbox': { opacity: 1 }
                               }}
@@ -450,11 +466,7 @@ const BoardViewPage = () => {
                                   sx={{ position: 'absolute', right: 2, bottom: 2, opacity: isSelected ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }} 
                                 />
 
-                                <Box className="drag-handle" {...provided.dragHandleProps} sx={{ position: 'absolute', left: 2, top: '50%', transform: 'translateY(-50%)', color: '#ccc', opacity: 0, transition: 'opacity 0.2s', cursor: 'grab' }}>
-                                  <DragIndicatorIcon sx={{ fontSize: 20 }} />
-                                </Box>
-
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, ml: 1.5 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
                                   <Typography variant="body2" sx={{ fontWeight: 500, flexGrow: 1, pr: 2 }}>
                                     {task.title}
                                   </Typography>
@@ -466,7 +478,7 @@ const BoardViewPage = () => {
                                   )}
                                 </Box>
 
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1, ml: 1.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
                                   {task.priority && <Chip label={task.priority} size="small" sx={{ height: '20px', fontSize: '0.7rem', ...PRIORITY_STYLES[task.priority] }} />}
                                   {task.comments?.length > 0 && (
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', mr: 3 }}>
