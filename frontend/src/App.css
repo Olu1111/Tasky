@@ -1,0 +1,16 @@
+/* --- ISSUE #57: REFINED AUTH GUARDS --- */
+
+/* Hide private links during 'null' (loading) or 'false' (logged out) states */
+[data-auth="null"] .authenticated-only,
+[data-auth="false"] .authenticated-only {
+  display: none !important;
+}
+
+/* We removed the [data-auth="null"] .auth-sensitive { display: none } 
+   so the Login button can actually exist while the app loads.
+*/
+
+/* Only hide guest-only (Login button) when we are confirmed logged in */
+[data-auth="true"] .guest-only {
+  display: none !important;
+}
