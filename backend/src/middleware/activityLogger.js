@@ -5,27 +5,19 @@
 
 const models = require("../models");
 
-/**
- * Create activity log entry
- * @param {string} action - Action type (e.g., "ticket.create")
- * @param {string} userId - User ID performing the action
- * @param {string} entityType - Type of entity (ticket, comment, board, column)
- * @param {string} entityId - ID of the entity
- * @param {string} boardId - ID of the board (for querying activities by board)
- * @param {object} metadata - Additional context (old values, new values, etc.)
- */
-async function logActivity(action, userId, entityType, entityId, boardId, metadata = {}) {
+
+async function logActivity(action, userId, entityType, entityId, boardId, entityName, metadata = {}) {
   try {
     await models.ActivityLog.create({
       action,
       userId,
       entityType,
       entityId,
+      entityName, 
       boardId,
       metadata,
     });
   } catch (error) {
-    // Log error but don't fail the main operation
     console.error("Error logging activity:", error);
   }
 }
@@ -42,8 +34,8 @@ function logTicketCreation(ticket) {
     "ticket",
     ticket._id,
     ticket.board,
+    ticket.title, 
     {
-      title: ticket.title,
       priority: ticket.priority,
       column: ticket.column,
     }
@@ -54,12 +46,15 @@ function logTicketCreation(ticket) {
  * Middleware to log ticket update
  */
 function logTicketUpdate(ticketId, userId, boardId, changes = {}) {
+  const name = changes.title || "Ticket";
+  
   return logActivity(
     "ticket.update",
     userId,
     "ticket",
     ticketId,
     boardId,
+    name,
     {
       changes,
     }
@@ -76,6 +71,7 @@ function logTicketMove(ticketId, userId, boardId, fromColumn, toColumn, oldIndex
     "ticket",
     ticketId,
     boardId,
+    "Ticket",
     {
       fromColumn,
       toColumn,
@@ -95,6 +91,7 @@ function logTicketDeletion(ticketId, userId, boardId, isHardDelete = false) {
     "ticket",
     ticketId,
     boardId,
+    "Ticket",
     {
       isHardDelete,
       timestamp: new Date(),
@@ -112,6 +109,7 @@ function logCommentAddition(commentId, userId, ticketId, boardId, text = "") {
     "comment",
     commentId,
     boardId,
+    "Comment", // Comments don't really have titles
     {
       ticketId,
       textLength: text.length,
@@ -129,6 +127,7 @@ function logCommentDeletion(commentId, userId, ticketId, boardId) {
     "comment",
     commentId,
     boardId,
+    "Comment",
     {
       ticketId,
     }
@@ -144,7 +143,8 @@ function logBoardCreation(boardId, userId, title = "") {
     userId,
     "board",
     boardId,
-    boardId, // For board activities, boardId is the entity itself
+    boardId, 
+    title,
     {
       title,
     }
@@ -161,6 +161,7 @@ function logBoardUpdate(boardId, userId, changes = {}) {
     "board",
     boardId,
     boardId,
+    changes.title || "Board",
     {
       changes,
     }
@@ -177,6 +178,7 @@ function logBoardDeletion(boardId, userId) {
     "board",
     boardId,
     boardId,
+    "Board",
     {
       timestamp: new Date(),
     }
@@ -193,6 +195,7 @@ function logColumnCreation(columnId, boardId, userId, title = "") {
     "column",
     columnId,
     boardId,
+    title,
     {
       title,
     }
@@ -209,6 +212,7 @@ function logColumnUpdate(columnId, boardId, userId, changes = {}) {
     "column",
     columnId,
     boardId,
+    changes.title || "Column",
     {
       changes,
     }
@@ -225,6 +229,7 @@ function logColumnDeletion(columnId, boardId, userId) {
     "column",
     columnId,
     boardId,
+    "Column",
     {
       timestamp: new Date(),
     }
