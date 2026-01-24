@@ -1,146 +1,127 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Badge, Menu, Divider } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import GlobalSearch from './GlobalSearch';
 import NotificationItem from './NotificationItem';
+import { apiClient } from '../utils/apiClient';
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { boardId } = useParams();
-  
+  const isLoggedIn = !!localStorage.getItem('token');
+  const pathParts = location.pathname.split('/');
+  const boardId = pathParts[1] === 'boards' && pathParts[2] ? pathParts[2] : null;
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const open = Boolean(anchorEl);
+  const lastDataRef = useRef(""); 
 
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    
-    if (!boardId || !token) {
+    if (!isLoggedIn || !boardId) {
       if (notifications.length > 0) setNotifications([]);
       return;
     }
-    
+
     try {
-      const response = await fetch(`http://localhost:4000/api/activity/boards/${boardId}/activity?limit=10`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const result = await response.json();
+      const response = await apiClient.get(`/boards/${boardId}/activity?limit=10`);
       
-if (result.success) {
-  const formatted = result.data.map(log => ({
-    id: log._id,
-    user: log.userId?.username || 'System',
-    action: log.action, // Pass the dot-notation string (e.g. "column.create")
-    target: log.entityName || log.entityType, // Uses the name saved in the controller
-    time: new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    isRead: false 
-  }));
-  setNotifications(formatted);
-}
+      if (response?.ok) {
+        const result = await response.json();
+        const dataString = JSON.stringify(result.data);
+        
+        if (dataString !== lastDataRef.current) {
+          lastDataRef.current = dataString;
+          setNotifications(result.data.map(log => ({
+            id: log._id,
+            user: log.userId?.username || 'System',
+            action: log.action,
+            target: log.entityName || log.entityType,
+            time: new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isRead: false 
+          })));
+        }
+      }
     } catch (err) {
       console.error("Notification fetch error:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId]); 
+  }, [boardId, isLoggedIn, notifications.length]); 
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]); 
+    if (isLoggedIn && boardId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchNotifications();
+      const timer = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(timer);
+    }
+  }, [isLoggedIn, boardId, fetchNotifications]);
 
-  const handleOpenNotifications = (event) => setAnchorEl(event.currentTarget);
-  const handleCloseNotifications = () => setAnchorEl(null);
-
-  const handleMarkAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  const handleClearNotifications = async () => {
+    try {
+      const response = await apiClient.post(`/boards/${boardId}/activity/clear`);
+      if (response?.ok) {
+        setNotifications([]);
+        lastDataRef.current = "";
+        setAnchorEl(null);
+      }
+    } catch (err) {
+      console.error("Failed to clear notifications:", err);
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.clear();
     setNotifications([]);
+    lastDataRef.current = "";
     navigate('/login');
   };
-
-  const hasToken = !!localStorage.getItem('token');
-  const isLoginPage = location.pathname === '/login';
-  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <AppBar position="static" sx={{ backgroundColor: '#263238', height: '64px', boxShadow: 'none' }}>
       <Toolbar sx={{ height: '100%', display: 'flex', justifyContent: 'space-between', px: 4 }}>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '150px' }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, userSelect: 'none', cursor: 'default' }}>
-            Tasky
-          </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 800, cursor: 'pointer' }} onClick={() => navigate('/boards')}>Tasky</Typography>
+
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          {isLoggedIn && <GlobalSearch />}
         </Box>
 
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', px: 2 }}>
-          {hasToken && <GlobalSearch />}
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', minWidth: '360px', justifyContent: 'flex-end' }}>
-          {hasToken ? (
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {isLoggedIn ? (
             <>
-              <IconButton color="inherit" onClick={handleOpenNotifications} sx={{ mr: 1 }}>
-                <Badge badgeContent={unreadCount} color="error">
+              <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)}>
+                <Badge badgeContent={notifications.length} color="error">
                   <NotificationsIcon />
                 </Badge>
               </IconButton>
-
+              
               <Button color="inherit" onClick={() => navigate('/my-tickets')}>My Tickets</Button>
               <Button color="inherit" onClick={() => navigate('/boards')}>Boards</Button>
               <Button color="inherit" onClick={handleLogout}>Logout</Button>
 
               <Menu
                 anchorEl={anchorEl}
-                open={open}
-                onClose={handleCloseNotifications}
-                PaperProps={{ 
-                  sx: { width: 340, maxHeight: 450, mt: 1.5, borderRadius: 2, boxShadow: 3 } 
-                }}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+                PaperProps={{ sx: { width: 340, mt: 1.5, borderRadius: 2 } }}
               >
                 <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="subtitle1" fontWeight="700">Notifications</Typography>
-                  {unreadCount > 0 && (
-                    <Button size="small" onClick={handleMarkAllRead} sx={{ textTransform: 'none' }}>
-                      Mark all as read
-                    </Button>
+                  <Typography variant="subtitle1" fontWeight="700">Activity</Typography>
+                  {notifications.length > 0 && (
+                    <Button size="small" onClick={handleClearNotifications} sx={{ textTransform: 'none' }}>Clear All</Button>
                   )}
                 </Box>
                 <Divider />
-                
-                <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
                   {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <NotificationItem 
-                        key={n.id} 
-                        notification={n} 
-                        onClick={handleCloseNotifications} 
-                      />
-                    ))
+                    notifications.map(n => <NotificationItem key={n.id} notification={n} />)
                   ) : (
-                    <Box sx={{ p: 4, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">No activity in this board yet</Typography>
-                    </Box>
+                    <Typography variant="body2" sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>All caught up!</Typography>
                   )}
                 </Box>
               </Menu>
             </>
           ) : (
-            <Button 
-              color="inherit" 
-              onClick={() => navigate('/login')}
-              disabled={isLoginPage}
-              sx={{ "&.Mui-disabled": { color: '#ffffff', opacity: 1 } }}
-            >
-              Login
-            </Button>
+            <Button color="inherit" onClick={() => navigate('/login')}>Login</Button>
           )}
         </Box>
       </Toolbar>

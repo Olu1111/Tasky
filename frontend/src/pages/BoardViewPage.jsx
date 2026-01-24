@@ -11,6 +11,7 @@ import SearchOffIcon from '@mui/icons-material/SearchOff';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate, useParams } from 'react-router-dom';
+import { apiClient } from '../utils/apiClient';
 
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import TicketModal from '../components/TicketModal'; 
@@ -96,27 +97,21 @@ const BoardViewPage = () => {
 
   const fetchData = useCallback(async (isSilent = false) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
       if (!isSilent) setLoading(true); 
-      const headers = { 'Authorization': `Bearer ${token}` };
 
+      // APICLIENT AUTOMATION: Headers and Token handled internally
       const [boardRes, colRes, userRes] = await Promise.all([
-        fetch(`http://localhost:4000/api/boards/${id}`, { headers }),
-        fetch(`http://localhost:4000/api/boards/${id}/columns`, { headers }),
-        fetch(`http://localhost:4000/api/users`, { headers })
+        apiClient.get(`/boards/${id}`),
+        apiClient.get(`/boards/${id}/columns`),
+        apiClient.get(`/users`)
       ]);
 
-      if (boardRes.status === 401) {
-        navigate('/login');
-        return;
+      if (boardRes?.ok) {
+        const boardJson = await boardRes.json();
+        setBoardTitle(boardJson.data.board.title);
       }
-
-      const boardJson = await boardRes.json();
-      if (boardJson.ok) setBoardTitle(boardJson.data.board.title);
       
-      if (colRes.ok) {
+      if (colRes?.ok) {
         const rawColumns = await colRes.json();
         const cleanColumns = rawColumns.map(col => ({
           ...col,
@@ -125,7 +120,7 @@ const BoardViewPage = () => {
         setColumns(cleanColumns);
       }
 
-      if (userRes.ok) {
+      if (userRes?.ok) {
         const userJson = await userRes.json();
         setUsers(userJson.data?.users || []);
       }
@@ -134,16 +129,11 @@ const BoardViewPage = () => {
     } finally { 
       setLoading(false); 
     }
-  }, [id, navigate]);
+  }, [id]);
 
   useEffect(() => { 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
     if (id) fetchData(); 
-  }, [id, fetchData, navigate]);
+  }, [id, fetchData]);
 
   const filteredColumns = useMemo(() => {
     return columns.map(column => ({
@@ -188,12 +178,8 @@ const BoardViewPage = () => {
     if (!window.confirm(`Delete ${selectedTicketIds.length} tasks?`)) return;
     
     try {
-      const token = localStorage.getItem('token');
       await Promise.all(selectedTicketIds.map(ticketId => 
-        fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        apiClient.delete(`/tickets/${ticketId}`) // Automated error handling
       ));
       
       setSnackbar({ open: true, message: `Successfully deleted tasks`, severity: 'success' });
@@ -201,8 +187,7 @@ const BoardViewPage = () => {
       fetchData(true);
       triggerNotificationSync();
     } catch (error) {
-      console.error("Bulk delete failed:", error); // FIX: Variable now used
-      setSnackbar({ open: true, message: 'Bulk delete failed', severity: 'error' });
+      console.error("Bulk delete failed:", error);
     }
   };
 
@@ -218,16 +203,11 @@ const BoardViewPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/tickets/${ticketId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(updatedData),
-      });
-
-      if (response.status === 401) navigate('/login');
-      fetchData(true);
-      triggerNotificationSync();
+      const response = await apiClient.patch(`/tickets/${ticketId}`, updatedData);
+      if (response?.ok) {
+        fetchData(true);
+        triggerNotificationSync();
+      }
     } catch (error) { 
       console.error("Update failed:", error); 
     }
@@ -259,64 +239,44 @@ const BoardViewPage = () => {
     setColumns(updatedColumns);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/tickets/${draggableId}/move`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ columnId: destination.droppableId, index: destination.index }),
+      const response = await apiClient.patch(`/tickets/${draggableId}/move`, { 
+        columnId: destination.droppableId, 
+        index: destination.index 
       });
-
-      if (response.status === 401) navigate('/login');
-      triggerNotificationSync();
+      if (response?.ok) triggerNotificationSync();
     } catch (error) {
-      console.error("Move sync failed:", error); // FIX: Variable now used
+      console.error("Move sync failed:", error);
       fetchData(true);
-      setSnackbar({ open: true, message: 'Failed to sync move. Reverting...', severity: 'error' });
     }
   };
 
   const handleCreateTicket = async (ticketData) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/tickets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ ...ticketData, boardId: id, columnId: activeColumn._id }),
+      const response = await apiClient.post(`/tickets`, { 
+        ...ticketData, 
+        boardId: id, 
+        columnId: activeColumn._id 
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          setSnackbar({ open: true, message: 'Session expired. Please login again.', severity: 'error' });
-          navigate('/login');
-        } else {
-          setSnackbar({ open: true, message: 'Failed to save ticket', severity: 'error' });
-        }
-        return;
+      if (response?.ok) {
+        fetchData(true); 
+        setIsTicketModalOpen(false);
+        setSnackbar({ open: true, message: 'Ticket created successfully!', severity: 'success' });
+        triggerNotificationSync();
       }
-
-      fetchData(true); 
-      setIsTicketModalOpen(false);
-      setSnackbar({ open: true, message: 'Ticket created successfully!', severity: 'success' });
-      triggerNotificationSync();
     } catch (error) { 
       console.error("Creation failed:", error); 
-      setSnackbar({ open: true, message: 'Network error', severity: 'error' });
     }
   };
 
   const handleAddColumn = async (title) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/boards/${id}/columns`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ title }),
-      });
-
-      if (response.status === 401) navigate('/login');
-      fetchData(true); 
-      setIsColumnModalOpen(false);
-      triggerNotificationSync();
+      const response = await apiClient.post(`/boards/${id}/columns`, { title });
+      if (response?.ok) {
+        fetchData(true); 
+        setIsColumnModalOpen(false);
+        triggerNotificationSync();
+      }
     } catch (error) { 
       console.error("Column add failed:", error); 
     }
@@ -324,16 +284,11 @@ const BoardViewPage = () => {
 
   const handleRenameColumn = async (colId, title) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/columns/${colId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ title }),
-      });
-
-      if (response.status === 401) navigate('/login');
-      fetchData(true);
-      triggerNotificationSync();
+      const response = await apiClient.patch(`/columns/${colId}`, { title });
+      if (response?.ok) {
+        fetchData(true);
+        triggerNotificationSync();
+      }
     } catch (error) { 
       console.error("Rename failed:", error); 
     }
@@ -341,16 +296,12 @@ const BoardViewPage = () => {
 
   const handleDeleteColumn = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/columns/${columnToDelete._id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.status === 401) navigate('/login');
-      setIsDeleteModalOpen(false); 
-      fetchData(true);
-      triggerNotificationSync();
+      const response = await apiClient.delete(`/columns/${columnToDelete._id}`);
+      if (response?.ok) {
+        setIsDeleteModalOpen(false); 
+        fetchData(true);
+        triggerNotificationSync();
+      }
     } catch (error) { 
       console.error("Delete failed:", error); 
     }
@@ -427,7 +378,7 @@ const BoardViewPage = () => {
                   <Box 
                     ref={provided.innerRef} 
                     {...provided.droppableProps} 
-                    sx={{ flexGrow: 1, overflowY: 'visible', minHeight: '10px', pr: 0.5 }} // FIX: nested scroll
+                    sx={{ flexGrow: 1, overflowY: 'visible', minHeight: '10px', pr: 0.5 }}
                   >
                     {column.items && column.items.length === 0 && (
                       <EmptyColumnState />
