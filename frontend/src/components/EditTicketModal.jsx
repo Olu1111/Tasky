@@ -207,7 +207,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
-        {isMember() && (
+        {canEdit && (
           <Button onClick={handleDeleteTicket} color="error" sx={{ textTransform: 'none', fontWeight: 700 }}>Delete Task</Button>
         )}
         <Box sx={{ ml: 'auto' }}>
