@@ -128,7 +128,54 @@ db.users.updateOne(
 
 ---
 
-### Test Case 7: Comment Deletion (Author or Admin Only)
+### Test Case 7: Ticket/Task Editing (Members Only)
+**Objective:** Verify that only members and admins can edit tickets
+
+**Steps:**
+1. Log in as **viewer**
+2. Navigate to a board and click on a ticket to open the edit modal
+3. Check if form fields are disabled
+4. Look for "Save Changes" button
+
+**Expected Results:**
+- **Viewer:** All form fields are DISABLED (title, description, priority, status, assignee), Save button is NOT visible
+- **Member:** All form fields are ENABLED, Save button IS visible and functional
+- **Admin:** All form fields are ENABLED, Save button IS visible and functional
+
+---
+
+### Test Case 8: Ticket/Task Deletion (Members Only)
+**Objective:** Verify that only members and admins can delete tickets
+
+**Steps:**
+1. Log in as each user type
+2. Open a ticket edit modal
+3. Look for "Delete Task" button
+
+**Expected Results:**
+- **Viewer:** Delete button is NOT visible
+- **Member:** Delete button IS visible and functional
+- **Admin:** Delete button IS visible and functional
+
+---
+
+### Test Case 9: Comment Creation (Members Only)
+**Objective:** Verify that only members and admins can create comments
+
+**Steps:**
+1. Log in as **viewer**
+2. Open a ticket edit modal
+3. Scroll to the comments section
+4. Look for comment input field and Send button
+
+**Expected Results:**
+- **Viewer:** Comment input field and Send button are NOT visible
+- **Member:** Comment input and Send button ARE visible and functional
+- **Admin:** Comment input and Send button ARE visible and functional
+
+---
+
+### Test Case 10: Comment Deletion (Author or Admin Only)
 **Objective:** Verify that only comment authors and admins can delete comments
 
 **Steps:**
@@ -142,7 +189,7 @@ db.users.updateOne(
 
 ---
 
-### Test Case 8: Backend Permission Enforcement
+### Test Case 11: Backend Permission Enforcement
 **Objective:** Verify that backend enforces permissions even if frontend restrictions are bypassed
 
 **Steps:**
@@ -173,7 +220,9 @@ The role hierarchy should work as follows:
 | Create Columns | ❌ | ✅ | ✅ |
 | Create Tickets | ❌ | ✅ | ✅ |
 | Edit Own Tickets | ❌ | ✅ | ✅ |
-| Delete Boards | ❌ | ❌ | ✅ |
+| Edit Any Ticket | ❌ | ✅ | ✅ |
+| Delete Tickets | ❌ | ✅ | ✅ |
+| Add Comments | ❌ | ✅ | ✅ |
 | Delete Columns | ❌ | ❌ | ✅ |
 | Delete Any Comment | ❌ | ❌ | ✅ |
 | Delete Own Comment | ❌ | ✅ | ✅ |
@@ -260,4 +309,5 @@ runTests().catch(console.error);
 - **Navbar**: Added role badge (colored by role)
 - **BoardsList**: Hide create/delete buttons based on role
 - **BoardViewPage**: Hide column creation, deletion, and card creation based on role
-- **CommentThread**: Already implemented - delete visible to author or admin
+- **EditTicketModal**: Disable all form fields and hide Save/Delete buttons for viewers
+- **CommentThread**: Hide comment input for viewers, delete visible to author or admin

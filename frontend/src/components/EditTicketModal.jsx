@@ -5,6 +5,7 @@ import {
   Avatar, ListItemIcon, ListItemText, Divider 
 } from '@mui/material';
 import CommentThread from './CommentThread';
+import { isMember } from '../utils/auth';
 
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return "#263238";
@@ -149,6 +150,9 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
     console.error("Token parsing failed");
   }
 
+  // Check if user can edit (member or admin)
+  const canEdit = isMember();
+
   return (
     <Dialog 
       open={isOpen} 
@@ -164,21 +168,21 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
       
       <DialogContent dividers>
         <Box display="flex" flexDirection="column" gap={2.5}>
-          <TextField label="Title" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} />
-          <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={(e) => setDescription(e.target.value)} />
+          <TextField label="Title" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} disabled={!canEdit} />
+          <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canEdit} />
           <Box display="flex" gap={2}>
-            <TextField select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} sx={{ flex: 1 }}>
+            <TextField select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} sx={{ flex: 1 }} disabled={!canEdit}>
               <MenuItem value="High">High</MenuItem>
               <MenuItem value="Medium">Medium</MenuItem>
               <MenuItem value="Low">Low</MenuItem>
             </TextField>
-            <TextField select label="Status" value={columnId} onChange={(e) => setColumnId(e.target.value)} sx={{ flex: 1 }}>
+            <TextField select label="Status" value={columnId} onChange={(e) => setColumnId(e.target.value)} sx={{ flex: 1 }} disabled={!canEdit}>
               {columns.map((col) => (
                 <MenuItem key={col._id} value={col._id}>{col.title}</MenuItem>
               ))}
             </TextField>
           </Box>
-          <TextField select label="Assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} fullWidth>
+          <TextField select label="Assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} fullWidth disabled={!canEdit}>
             <MenuItem value=""><ListItemIcon><Avatar sx={{ width: 24, height: 24, bgcolor: '#eee' }}>-</Avatar></ListItemIcon><ListItemText primary="None (Unassigned)" /></MenuItem>
             {teamMembers.map((u) => (
               <MenuItem key={u._id} value={u._id}>
@@ -203,10 +207,14 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
-        <Button onClick={handleDeleteTicket} color="error" sx={{ textTransform: 'none', fontWeight: 700 }}>Delete Task</Button>
-        <Box>
+        {isMember() && (
+          <Button onClick={handleDeleteTicket} color="error" sx={{ textTransform: 'none', fontWeight: 700 }}>Delete Task</Button>
+        )}
+        <Box sx={{ ml: 'auto' }}>
           <Button onClick={onClose} sx={{ textTransform: 'none', mr: 1 }}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#263238', fontWeight: 700, textTransform: 'none' }}>Save Changes</Button>
+          {canEdit && (
+            <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#263238', fontWeight: 700, textTransform: 'none' }}>Save Changes</Button>
+          )}
         </Box>
       </DialogActions>
     </Dialog>

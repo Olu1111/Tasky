@@ -21,13 +21,20 @@ const CommentThread = ({ comments = [], onAddComment, onDeleteComment, currentUs
     setText("");
   };
 
+  // Only members and admins can add comments
+  const canComment = currentUserRole === 'admin' || currentUserRole === 'member';
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" fontWeight="800">Comments ({comments.length})</Typography>
-      <TextField fullWidth multiline rows={2} placeholder="Write a comment..." value={text} onChange={(e) => setText(e.target.value)} sx={{ mt: 1 }} />
-      <Box display="flex" justifyContent="flex-end" sx={{ mt: 1 }}>
-        <Button onClick={handleSubmit} disabled={!text.trim()} variant="contained" sx={{ bgcolor: '#263238', textTransform: 'none', fontWeight: 700 }}>Send</Button>
-      </Box>
+      {canComment && (
+        <>
+          <TextField fullWidth multiline rows={2} placeholder="Write a comment..." value={text} onChange={(e) => setText(e.target.value)} sx={{ mt: 1 }} />
+          <Box display="flex" justifyContent="flex-end" sx={{ mt: 1 }}>
+            <Button onClick={handleSubmit} disabled={!text.trim()} variant="contained" sx={{ bgcolor: '#263238', textTransform: 'none', fontWeight: 700 }}>Send</Button>
+          </Box>
+        </>
+      )}
 
       <Stack spacing={2} sx={{ mt: 4 }}>
         {comments.map((comment) => {
