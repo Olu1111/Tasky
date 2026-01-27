@@ -5,7 +5,8 @@ import {
 } from '@mui/material'; 
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import BoardModal from '../components/BoardModal'; 
+import BoardModal from '../components/BoardModal';
+import { isAdmin, isMember } from '../utils/auth'; 
 
 const BoardsList = () => {
   const navigate = useNavigate();
@@ -14,7 +15,9 @@ const BoardsList = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const isAdmin = true; // For visibility of admin controls
+  // Check user role from localStorage
+  const userIsAdmin = isAdmin();
+  const userIsMember = isMember();
 
   const fetchBoards = async () => {
     try {
@@ -74,7 +77,7 @@ const BoardsList = () => {
           <Typography variant="h4" fontWeight="bold">My Boards</Typography>
           <Typography variant="body1" color="text.secondary">Select a project to start working.</Typography>
         </Box>
-        {isAdmin && (
+        {userIsMember && (
           <Button variant="contained" onClick={() => setIsModalOpen(true)}
             sx={{ bgcolor: '#263238', color: '#ffffff', textTransform: 'none', fontWeight: '700', px: 3 }}>
             + Create Board
@@ -107,7 +110,7 @@ const BoardsList = () => {
                   </CardContent>
                 </CardActionArea>
 
-                {isAdmin && (
+                {userIsAdmin && (
                   <IconButton 
                     className="delete-btn"
                     onClick={(e) => handleDeleteBoard(e, board._id)}

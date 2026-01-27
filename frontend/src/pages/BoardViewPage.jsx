@@ -13,6 +13,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../utils/apiClient';
+import { isAdmin, isMember } from '../utils/auth';
 import BoardSkeleton from '../components/BoardSkeleton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import TicketModal from '../components/TicketModal'; 
@@ -84,7 +85,9 @@ const BoardViewPage = () => {
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
-  const isAdmin = true;
+  // Check user role from localStorage
+  const userIsAdmin = isAdmin();
+  const userIsMember = isMember();
 
   const triggerNotificationSync = useCallback(() => {
     window.dispatchEvent(new Event('refreshNotifications'));
@@ -267,20 +270,22 @@ const BoardViewPage = () => {
           </Box>
           
           {/* COLOR FIX: Using Charcoal Grey #263238 */}
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />} 
-            onClick={() => setIsColumnModalOpen(true)} 
-            sx={{ 
-              borderRadius: '8px', 
-              textTransform: 'none', 
-              fontWeight: 700, 
-              bgcolor: '#263238', 
-              '&:hover': { bgcolor: '#37474f' } 
-            }}
-          >
-            Add Column
-          </Button>
+          {userIsMember && (
+            <Button 
+              variant="contained" 
+              startIcon={<AddIcon />} 
+              onClick={() => setIsColumnModalOpen(true)} 
+              sx={{ 
+                borderRadius: '8px', 
+                textTransform: 'none', 
+                fontWeight: 700, 
+                bgcolor: '#263238', 
+                '&:hover': { bgcolor: '#37474f' } 
+              }}
+            >
+              Add Column
+            </Button>
+          )}
         </Box>
         {columns.length > 0 && <Box sx={{ mb: 1 }}><FilterBar filters={filters} setFilters={setFilters} users={users} columns={columns} onClear={() => setFilters(initialFilters)} /></Box>}
       </Box>
@@ -293,7 +298,7 @@ const BoardViewPage = () => {
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, cursor: 'text', flexGrow: 1 }} component="div">
                   <input defaultValue={column.title} onBlur={(e) => handleRenameColumn(column._id, e.target.value)} style={{ background: 'transparent', border: 'none', fontWeight: 'inherit', outline: 'none', width: '100%', fontFamily: 'inherit', fontSize: 'inherit' }} />
                 </Typography>
-                {isAdmin && <IconButton size="small" onClick={() => { setColumnToDelete(column); setIsDeleteModalOpen(true); }}><DeleteIcon sx={{ fontSize: 18 }} /></IconButton>}
+                {userIsAdmin && <IconButton size="small" onClick={() => { setColumnToDelete(column); setIsDeleteModalOpen(true); }}><DeleteIcon sx={{ fontSize: 18 }} /></IconButton>}
               </Box>
 
               <Droppable droppableId={column._id}>
@@ -329,7 +334,7 @@ const BoardViewPage = () => {
                   </Box>
                 )}
               </Droppable>
-              <Button fullWidth startIcon={<AddIcon />} onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }} sx={{ textTransform: 'none', mt: 1, color: '#5e6c84', fontWeight: 600, justifyContent: 'flex-start' }}>Add a card</Button>
+              <Button fullWidth startIcon={<AddIcon />} onClick={() => { setActiveColumn(column); setIsTicketModalOpen(true); }} sx={{ textTransform: 'none', mt: 1, color: '#5e6c84', fontWeight: 600, justifyContent: 'flex-start', display: userIsMember ? 'flex' : 'none' }}>Add a card</Button>
             </Box>
           ))}
         </Box>
