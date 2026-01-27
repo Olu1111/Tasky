@@ -93,3 +93,4 @@
 - [Backend](docs/backend/backend.md)
 - [Frontend](docs/frontend/frontend.md)
 - [API](docs/api/api.md)
+- [Role Enforcement Testing](docs/ROLE_ENFORCEMENT_TESTING.md)

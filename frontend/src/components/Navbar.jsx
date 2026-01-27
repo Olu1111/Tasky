@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, Badge, Menu, Divider } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, IconButton, Badge, Menu, Divider, Chip } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useNavigate, useLocation } from 'react-router-dom';
 import GlobalSearch from './GlobalSearch';
 import NotificationItem from './NotificationItem';
 import { apiClient } from '../utils/apiClient';
+import { getUserRole } from '../utils/auth';
 
 export default function Navbar({ authenticated }) {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ export default function Navbar({ authenticated }) {
 
   const pathParts = location.pathname.split('/');
   const boardId = pathParts[1] === 'boards' && pathParts[2] ? pathParts[2] : null;
+
+  // Get user role for display
+  const userRole = getUserRole();
 
   const fetchNotifications = useCallback(async () => {
     if (authenticated !== true || !boardId) {
@@ -109,6 +113,21 @@ export default function Navbar({ authenticated }) {
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
             {authenticated === true && (
               <Box className="authenticated-only" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                
+                {userRole && (
+                  <Chip 
+                    label={userRole.toUpperCase()} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 700,
+                      bgcolor: userRole === 'admin' ? '#d32f2f' : userRole === 'member' ? '#1976d2' : '#757575',
+                      color: 'white',
+                      '&:hover': { 
+                        bgcolor: userRole === 'admin' ? '#c62828' : userRole === 'member' ? '#1565c0' : '#616161' 
+                      }
+                    }}
+                  />
+                )}
                 
                 <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)}>
                   <Badge badgeContent={notifications.length} color="error">
