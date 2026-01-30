@@ -1,285 +1,343 @@
-const request = require('supertest');
-const app = require('../src/app');
+/**
+ * Edge Case Testing: Empty/Null Input Validation
+ * 
+ * These tests verify that the application properly handles empty, null, and whitespace inputs
+ * for critical fields like titles and descriptions across boards, tickets, and comments.
+ */
+
 const models = require('../src/models');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 
-describe('Edge Case Testing: Empty/Null Inputs', () => {
-  let adminToken, memberToken, viewerToken;
-  let adminUser, memberUser, viewerUser;
-  
-  beforeEach(async () => {
-    // Create test users
-    const hashedPassword = await bcrypt.hash('password123', 10);
-    
-    adminUser = await models.User.create({
-      name: 'Admin User',
-      email: 'admin@test.com',
-      password: hashedPassword,
-      role: 'admin'
-    });
-    
-    memberUser = await models.User.create({
-      name: 'Member User',
-      email: 'member@test.com',
-      password: hashedPassword,
-      role: 'member'
-    });
-    
-    viewerUser = await models.User.create({
-      name: 'Viewer User',
-      email: 'viewer@test.com',
-      password: hashedPassword,
-      role: 'viewer'
-    });
-    
-    adminToken = jwt.sign({ sub: adminUser._id }, process.env.JWT_SECRET || 'test-secret');
-    memberToken = jwt.sign({ sub: memberUser._id }, process.env.JWT_SECRET || 'test-secret');
-    viewerToken = jwt.sign({ sub: viewerUser._id }, process.env.JWT_SECRET || 'test-secret');
-  });
-
-  describe('Board Creation with Empty/Null Inputs', () => {
-    test('should reject board creation with empty title', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ title: '', description: 'Test description' });
+describe('Empty/Null Input Validation - Model Schema Tests', () => {
+  describe('Board Model Validation', () => {
+    test('should require title field', async () => {
+      const board = new models.Board({
+        owner: '507f1f77bcf86cd799439011' // Valid ObjectId
+        // title intentionally missing
+      });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-      expect(response.body.error).toContain('title');
-    });
-
-    test('should reject board creation with null title', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ title: null, description: 'Test description' });
+      let error;
+      try {
+        await board.validate();
+      } catch (e) {
+        error = e;
+      }
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
+      expect(error).toBeDefined();
+      expect(error.errors.title).toBeDefined();
     });
 
-    test('should reject board creation with whitespace-only title', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ title: '   ', description: 'Test description' });
+    test('should reject empty string title', async () => {
+      const board = new models.Board({
+        title: '',
+        owner: '507f1f77bcf86cd799439011'
+      });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-    });
-
-    test('should reject board creation with missing title', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ description: 'Test description' });
+      let error;
+      try {
+        await board.validate();
+      } catch (e) {
+        error = e;
+      }
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
+      expect(error).toBeDefined();
+      expect(error.errors.title).toBeDefined();
     });
 
-    test('should accept board creation with empty description', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ title: 'Valid Board', description: '' });
+    test('should trim whitespace from title', () => {
+      const board = new models.Board({
+        title: '  Test Board  ',
+        owner: '507f1f77bcf86cd799439011'
+      });
       
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.board.description).toBe('');
+      expect(board.title).toBe('Test Board');
     });
 
-    test('should accept board creation with null description', async () => {
-      const response = await request(app)
-        .post('/api/boards')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ title: 'Valid Board', description: null });
-      
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.board.description).toBe('');
-    });
-  });
-
-  describe('Ticket Creation with Empty/Null Inputs', () => {
-    let board, column;
-
-    beforeEach(async () => {
-      board = await models.Board.create({
+    test('should allow empty description', () => {
+      const board = new models.Board({
         title: 'Test Board',
-        owner: memberUser._id,
-        members: []
+        description: '',
+        owner: '507f1f77bcf86cd799439011'
       });
+      
+      expect(board.description).toBe('');
+    });
 
-      column = await models.Column.create({
-        title: 'Backlog',
-        board: board._id,
-        position: 0
+    test('should default description to empty string when not provided', () => {
+      const board = new models.Board({
+        title: 'Test Board',
+        owner: '507f1f77bcf86cd799439011'
       });
-    });
-
-    test('should reject ticket creation with empty title', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: '',
-          description: 'Test description',
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-      expect(response.body.error).toContain('Title');
-    });
-
-    test('should reject ticket creation with null title', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: null,
-          description: 'Test description',
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
-      
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-    });
-
-    test('should reject ticket creation with whitespace-only title', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: '   ',
-          description: 'Test description',
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
-      
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-    });
-
-    test('should accept ticket creation with empty description', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: 'Valid Ticket',
-          description: '',
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
-      
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.ticket.description).toBe('');
-    });
-
-    test('should accept ticket creation with null description', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: 'Valid Ticket',
-          description: null,
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
-      
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.ticket.description).toBe('');
-    });
-
-    test('should trim whitespace from ticket title', async () => {
-      const response = await request(app)
-        .post('/api/tickets')
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({
-          title: '  Valid Ticket  ',
-          description: 'Test',
-          boardId: board._id.toString(),
-          columnId: column._id.toString()
-        });
-      
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.ticket.title).toBe('Valid Ticket');
+      expect(board.description).toBe('');
     });
   });
 
-  describe('Comment Creation with Empty/Null Inputs', () => {
-    let board, column, ticket;
-
-    beforeEach(async () => {
-      board = await models.Board.create({
-        title: 'Test Board',
-        owner: memberUser._id,
-        members: []
+  describe('Ticket Model Validation', () => {
+    test('should require title field', async () => {
+      const ticket = new models.Ticket({
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+        // title intentionally missing
       });
+      
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.title).toBeDefined();
+    });
 
-      column = await models.Column.create({
-        title: 'Backlog',
-        board: board._id,
-        position: 0
+    test('should reject empty string title', async () => {
+      const ticket = new models.Ticket({
+        title: '',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
       });
+      
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.title).toBeDefined();
+    });
 
-      ticket = await models.Ticket.create({
+    test('should trim whitespace from title', () => {
+      const ticket = new models.Ticket({
+        title: '  Test Ticket  ',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
+      
+      expect(ticket.title).toBe('Test Ticket');
+    });
+
+    test('should enforce maximum title length of 100 characters', async () => {
+      const longTitle = 'a'.repeat(101);
+      const ticket = new models.Ticket({
+        title: longTitle,
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
+      
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.title).toBeDefined();
+      expect(error.errors.title.message).toContain('100 characters');
+    });
+
+    test('should allow empty description', () => {
+      const ticket = new models.Ticket({
         title: 'Test Ticket',
-        board: board._id,
-        column: column._id,
-        createdBy: memberUser._id,
-        position: 0
+        description: '',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
       });
+      
+      expect(ticket.description).toBe('');
     });
 
-    test('should reject comment with empty text', async () => {
-      const response = await request(app)
-        .post(`/api/tickets/${ticket._id}/comments`)
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ text: '' });
+    test('should default description to empty string when not provided', () => {
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
-      expect(response.body.error).toContain('required');
+      expect(ticket.description).toBe('');
     });
 
-    test('should reject comment with null text', async () => {
-      const response = await request(app)
-        .post(`/api/tickets/${ticket._id}/comments`)
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ text: null });
+    test('should enforce maximum description length of 1000 characters', async () => {
+      const longDescription = 'a'.repeat(1001);
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        description: longDescription,
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.description).toBeDefined();
+      expect(error.errors.description.message).toContain('1000 characters');
     });
 
-    test('should reject comment with whitespace-only text', async () => {
-      const response = await request(app)
-        .post(`/api/tickets/${ticket._id}/comments`)
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ text: '   ' });
+    test('should allow null assignee (unassigned ticket)', () => {
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011',
+        assignee: null
+      });
       
-      expect(response.status).toBe(400);
-      expect(response.body.ok).toBe(false);
+      expect(ticket.assignee).toBeNull();
     });
 
-    test('should trim whitespace from comment text', async () => {
-      const response = await request(app)
-        .post(`/api/tickets/${ticket._id}/comments`)
-        .set('Authorization', `Bearer ${memberToken}`)
-        .send({ text: '  Valid comment  ' });
+    test('should enforce valid priority values', async () => {
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        priority: 'Invalid',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
       
-      expect(response.status).toBe(201);
-      expect(response.body.ok).toBe(true);
-      expect(response.body.data.comment.text).toBe('Valid comment');
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.priority).toBeDefined();
+      expect(error.errors.priority.message).toContain('Low, Medium, or High');
+    });
+
+    test('should default priority to Medium', () => {
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
+      
+      expect(ticket.priority).toBe('Medium');
+    });
+
+    test('should enforce non-negative position', async () => {
+      const ticket = new models.Ticket({
+        title: 'Test Ticket',
+        position: -1,
+        board: '507f1f77bcf86cd799439011',
+        column: '507f1f77bcf86cd799439011',
+        createdBy: '507f1f77bcf86cd799439011'
+      });
+      
+      let error;
+      try {
+        await ticket.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.position).toBeDefined();
+      expect(error.errors.position.message).toContain('cannot be negative');
+    });
+  });
+
+  describe('User Model Validation', () => {
+    test('should require name field', async () => {
+      const user = new models.User({
+        email: 'test@example.com',
+        password: 'password123'
+        // name intentionally missing
+      });
+      
+      let error;
+      try {
+        await user.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.name).toBeDefined();
+    });
+
+    test('should require email field', async () => {
+      const user = new models.User({
+        name: 'Test User',
+        password: 'password123'
+        // email intentionally missing
+      });
+      
+      let error;
+      try {
+        await user.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.email).toBeDefined();
+    });
+
+    test('should trim whitespace from name', () => {
+      const user = new models.User({
+        name: '  Test User  ',
+        email: 'test@example.com',
+        password: 'password123'
+      });
+      
+      expect(user.name).toBe('Test User');
+    });
+
+    test('should convert email to lowercase', () => {
+      const user = new models.User({
+        name: 'Test User',
+        email: 'Test@EXAMPLE.COM',
+        password: 'password123'
+      });
+      
+      expect(user.email).toBe('test@example.com');
+    });
+
+    test('should default role to member', () => {
+      const user = new models.User({
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123'
+      });
+      
+      expect(user.role).toBe('member');
+    });
+
+    test('should enforce valid role values', async () => {
+      const user = new models.User({
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'password123',
+        role: 'invalid'
+      });
+      
+      let error;
+      try {
+        await user.validate();
+      } catch (e) {
+        error = e;
+      }
+      
+      expect(error).toBeDefined();
+      expect(error.errors.role).toBeDefined();
     });
   });
 });

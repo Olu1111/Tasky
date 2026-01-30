@@ -103,7 +103,16 @@ describe('Network Error Handling and Recovery', () => {
 
   describe('Authorization Header', () => {
     it('should include authorization header when token exists', async () => {
-      localStorage.setItem('token', 'test-token');
+      const mockLocalStorage = {
+        getItem: vi.fn((key) => key === 'token' ? 'test-token' : null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+      };
+      
+      // Temporarily replace localStorage
+      const originalLocalStorage = global.localStorage;
+      global.localStorage = mockLocalStorage;
       
       global.fetch = vi.fn(() =>
         Promise.resolve({
@@ -115,14 +124,12 @@ describe('Network Error Handling and Recovery', () => {
 
       await apiClient.get('/test');
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:4000/api/test',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Authorization': 'Bearer test-token',
-          }),
-        })
-      );
+      const callArgs = global.fetch.mock.calls[0][1];
+      expect(callArgs.headers).toBeDefined();
+      expect(callArgs.headers.Authorization).toBe('Bearer test-token');
+      
+      // Restore localStorage
+      global.localStorage = originalLocalStorage;
     });
 
     it('should not include authorization header when no token', async () => {
