@@ -11,6 +11,8 @@ import SignupPage from './pages/SignupPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { RoleProvider, useRole } from './hooks/useRole.jsx';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
 // Code splitting: Lazy load heavy route components
 const BoardsList = lazy(() => import('./pages/BoardsList'));
 const BoardViewPage = lazy(() => import('./pages/BoardViewPage'));
@@ -59,7 +61,7 @@ function AppContent() {
     // Fetch user with role/permissions ONCE (avoid repeated fetches)
     if (hasToken && !isLoginPath && !userFetchedRef.current) {
       userFetchedRef.current = true;
-      fetch('http://localhost:4000/api/users/me', {
+      fetch(`${API_URL}/users/me`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
         .then(r => r.json())

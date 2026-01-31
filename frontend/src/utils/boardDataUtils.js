@@ -1,13 +1,15 @@
 // Frontend utility to display seeded board data
 // Shows stats and sample tickets from boards
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
 /**
  * Fetch board statistics including ticket counts
  */
 export const fetchBoardStats = async (boardId) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:4000/api/boards/${boardId}`, {
+    const response = await fetch(`${API_URL}/boards/${boardId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -47,7 +49,7 @@ export const fetchBoardStats = async (boardId) => {
 export const fetchAllBoardsStats = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:4000/api/boards', {
+    const response = await fetch(`${API_URL}/boards`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -191,7 +193,7 @@ export const displaySampleData = async (boardId) => {
 export const exportBoardDataAsJSON = async (boardId) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`http://localhost:4000/api/boards/${boardId}`, {
+    const response = await fetch(`${API_URL}/boards/${boardId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 

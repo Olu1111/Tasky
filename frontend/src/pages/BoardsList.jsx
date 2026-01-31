@@ -7,6 +7,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import BoardModal from '../components/BoardModal'; 
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
 const BoardsList = () => {
   const navigate = useNavigate();
   const [boards, setBoards] = useState([]); 
@@ -20,7 +22,7 @@ const BoardsList = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/boards', {
+      const response = await fetch(`${API_URL}/boards`, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (!response.ok) throw new Error('Failed to fetch boards');
@@ -38,7 +40,7 @@ const BoardsList = () => {
   const handleCreateBoard = async ({ title, description }) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:4000/api/boards', {
+      const response = await fetch(`${API_URL}/boards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ title, description })
@@ -57,7 +59,7 @@ const BoardsList = () => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/boards/${boardId}`, {
+      const response = await fetch(`${API_URL}/boards/${boardId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
