@@ -3,15 +3,24 @@ function notFound(req, res, next) {
 }
 
 function errorHandler(err, req, res, next) {
-  const status = err.statusCode || 500;
+  const isProduction = process.env.NODE_ENV === "production";
+  const status = err.statusCode || err.status || 500;
+  const message = err.message || "Server error";
+  
+  // Log all errors
+  const logLevel = status >= 500 ? "error" : "warn";
+  console.log(`[${logLevel.toUpperCase()}] ${status} - ${message}`);
+  if (!isProduction) {
+    console.error(err.stack);
+  }
 
-  // Avoid leaking sensitive internals in prod
+  // Avoid leaking sensitive internals in production
   const payload = {
     ok: false,
-    error: err.message || "Server error",
+    error: isProduction && status === 500 ? "Internal Server Error" : message,
   };
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProduction) {
     payload.stack = err.stack;
   }
 

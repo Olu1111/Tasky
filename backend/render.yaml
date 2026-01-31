@@ -1,0 +1,24 @@
+# Render Deployment Configuration
+# This file is used to deploy the backend to Render.com
+
+# Service name
+services:
+  - type: web
+    name: tasky-backend
+    env: node
+    plan: standard
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://your-frontend-domain.com
+      - key: LOG_LEVEL
+        value: warn

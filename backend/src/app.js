@@ -11,17 +11,47 @@ const { generalLimiter, writeLimiter, searchLimiter } = require("./middleware/ra
 
 function createApp({ corsOrigin }) {
   const app = express();
-  app.use(helmet());
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  // Security headers with production-specific CSP
+  app.use(helmet({
+    contentSecurityPolicy: isProduction ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'", corsOrigin]
+      }
+    } : false
+  }));
+  
   app.use(express.json({ limit: "1mb" }));
-  app.use(
-    cors({
-      origin: corsOrigin,
-      credentials: true,
-    })
-  );
+  
+  // Enhanced CORS configuration for production
+  const corsOptions = {
+    origin: function(origin, callback) {
+      const allowedOrigins = corsOrigin.split(',').map(o => o.trim());
+      if (isProduction) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'), false);
+        }
+      } else {
+        callback(null, true);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  };
+  
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
 
+  // Logging setup
   const logsDir = path.join(__dirname, "../logs");
-  if (!fs.existsSync(logsDir)) {
+  if (!isProduction && !fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 
@@ -32,10 +62,12 @@ function createApp({ corsOrigin }) {
   const securityLogFormat =
     ":remote-addr :remote-user [:date[clf]] \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\" user=:user-id role=:user-role :response-time-ms ms";
 
-  const auditStream = fs.createWriteStream(path.join(logsDir, "audit.log"), { flags: "a" });
-  app.use(morgan(securityLogFormat, { stream: auditStream }));
-
-  if (process.env.NODE_ENV !== "production") {
+  // File logging for development, console for production
+  if (isProduction) {
+    app.use(morgan(securityLogFormat));
+  } else {
+    const auditStream = fs.createWriteStream(path.join(logsDir, "audit.log"), { flags: "a" });
+    app.use(morgan(securityLogFormat, { stream: auditStream }));
     app.use(morgan("dev"));
   }
 

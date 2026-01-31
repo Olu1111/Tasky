@@ -1,0 +1,22 @@
+# Railway Deployment Configuration
+# Deploy.railway.json configuration for Railway.app
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+[[services.variables]]
+key = "NODE_ENV"
+value = "production"
+
+[[services.variables]]
+key = "PORT"
+value = "4000"
+
+[[services.variables]]
+key = "LOG_LEVEL"
+value = "warn"
