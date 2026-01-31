@@ -47,7 +47,7 @@ function createApp({ corsOrigin }) {
   };
   
   app.use(cors(corsOptions));
-  app.options('*', cors(corsOptions));
+  app.options(/.*/, cors(corsOptions));
 
   // Logging setup
   const logsDir = path.join(__dirname, "../logs");
