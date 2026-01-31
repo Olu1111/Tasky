@@ -12,6 +12,10 @@ const { generalLimiter, writeLimiter, searchLimiter } = require("./middleware/ra
 function createApp({ corsOrigin }) {
   const app = express();
   const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
   
   // Security headers with production-specific CSP
   app.use(helmet({
