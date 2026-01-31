@@ -4,8 +4,8 @@
   "framework": "vite",
   "env": {
     "VITE_API_URL": {
-      "description": "Backend API URL for production",
-      "example": "https://your-backend-domain.com/api"
+      "development": "https://tasky-rrzd.onrender.com",
+      "production": "https://tasky-rrzd.onrender.com"
     }
   },
   "headers": [
