@@ -1,6 +1,7 @@
 import { handleNetworkError } from './notifications';
 
-const BASE_URL = 'http://localhost:4000/api';
+// Use environment variable for API URL, fallback to localhost for development
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 async function request(endpoint, options = {}, retries = 2) {
   const token = localStorage.getItem('token');
