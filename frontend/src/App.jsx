@@ -28,16 +28,32 @@ const LoadingFallback = () => (
 
 // Admin route protection wrapper
 function AdminRouteGuard() {
-  const { getRole } = useRole();
+  const { getRole, user } = useRole();
   const navigate = useNavigate();
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch (err) {
+      return null;
+    }
+  })();
+  const role = getRole() || storedUser?.role;
+  const hasToken = !!localStorage.getItem('token');
 
   React.useEffect(() => {
-    if (getRole() !== 'admin') {
+    if (!hasToken) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (role && role !== 'admin') {
       navigate('/boards', { replace: true });
     }
-  }, [getRole, navigate]);
+  }, [hasToken, role, navigate]);
 
-  return getRole() === 'admin' ? <AdminPage /> : null;
+  if (hasToken && !role) return null;
+
+  return role === 'admin' ? <AdminPage /> : null;
 }
 
 function AppContent() {
@@ -48,7 +64,13 @@ function AppContent() {
   // ATOMIC NULL STATE: Starts as null so Navbar remains hidden 
   // via CSS until we are 100% sure of the auth status.
   const [authState, setAuthState] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch (err) {
+      return null;
+    }
+  });
 
   useLayoutEffect(() => {
     // Synchronous check before the browser paints the first frame
@@ -58,6 +80,10 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAuthState(hasToken && !isLoginPath);
 
+    if (!hasToken) {
+      setUser(null);
+    }
+
     // Fetch user with role/permissions ONCE (avoid repeated fetches)
     if (hasToken && !isLoginPath && !userFetchedRef.current) {
       userFetchedRef.current = true;
@@ -66,7 +92,10 @@ function AppContent() {
       })
         .then(r => r.json())
         .then(json => {
-          if (json.ok) setUser(json.data);
+          if (json.ok) {
+            setUser(json.data);
+            localStorage.setItem('user', JSON.stringify(json.data));
+          }
         })
         .catch(err => console.error('Failed to fetch user role:', err));
     }
