@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify';
+import { handleNetworkError } from './notifications';
 
 const BASE_URL = 'http://localhost:4000/api';
 
@@ -18,7 +18,7 @@ async function request(endpoint, options = {}, retries = 2) {
     const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
     if (response.status === 401) {
-      toast.error("Session expired.");
+      handleNetworkError(new Error('Session expired'), 'Auth');
       localStorage.clear();
       window.location.href = '/login';
       return null;
@@ -30,7 +30,7 @@ async function request(endpoint, options = {}, retries = 2) {
       await new Promise(res => setTimeout(res, 1000));
       return request(endpoint, options, retries - 1);
     }
-    toast.error("Network error. Please check your connection.");
+    handleNetworkError(error, 'Network request');
     throw error;
   }
 }

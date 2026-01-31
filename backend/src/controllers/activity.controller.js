@@ -14,8 +14,10 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   const { boardId } = req.params;
   const { entityType, userId, action, limit = 50, skip = 0 } = req.query;
 
-  // Build query filter
+  // Build query filter with 12-hour time window
   const query = { boardId };
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+  query.createdAt = { $gte: twelveHoursAgo };
 
   if (entityType) {
     query.entityType = entityType;
@@ -33,10 +35,12 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   const total = await models.ActivityLog.countDocuments(query);
 
   // Fetch paginated results, sorted by most recent first
+  // Max 25 items per request
+  const requestLimit = Math.min(parseInt(limit) || 25, 25);
   const activities = await models.ActivityLog.find(query)
     .populate("userId", "username email")
     .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
+    .limit(requestLimit)
     .skip(parseInt(skip))
     .lean();
 
@@ -45,10 +49,15 @@ const getActivityLogs = asyncHandler(async (req, res) => {
     data: activities,
     pagination: {
       total,
-      limit: parseInt(limit),
+      limit: requestLimit,
       skip: parseInt(skip),
-      hasMore: parseInt(skip) + parseInt(limit) < total,
+      hasMore: parseInt(skip) + requestLimit < total,
     },
+    metadata: {
+      timeWindow: '12 hours',
+      maxLimit: 50,
+      forgetBefore: twelveHoursAgo.toISOString()
+    }
   });
 });
 
@@ -60,18 +69,23 @@ const getTicketActivityLogs = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
   const { limit = 50, skip = 0 } = req.query;
 
-  // Get total count
-  const total = await models.ActivityLog.countDocuments({
+  // Query with 12-hour time window
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+  const query = {
     entityId: ticketId,
-  });
+    createdAt: { $gte: twelveHoursAgo }
+  };
+
+  // Get total count
+  const total = await models.ActivityLog.countDocuments(query);
 
   // Fetch activities for this ticket
-  const activities = await models.ActivityLog.find({
-    entityId: ticketId,
-  })
+  // Max 25 items per request
+  const requestLimit = Math.min(parseInt(limit) || 25, 25);
+  const activities = await models.ActivityLog.find(query)
     .populate("userId", "username email")
     .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
+    .limit(requestLimit)
     .skip(parseInt(skip))
     .lean();
 

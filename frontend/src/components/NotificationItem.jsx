@@ -55,4 +55,4 @@ const NotificationItem = ({ notification, onClick }) => {
   );
 };
 
-export default NotificationItem;
+export default React.memo(NotificationItem);

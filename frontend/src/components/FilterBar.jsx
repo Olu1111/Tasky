@@ -26,12 +26,13 @@ const FilterBar = ({ filters, setFilters, users, columns, onClear }) => {
 
   return (
     <Paper elevation={0} sx={{ p: 2, mb: 3, border: '1px solid #e0e0e0', borderRadius: '12px' }}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }} role="region" aria-label="Filter options">
         <TextField
           size="small"
           label="Search tickets..."
           value={filters.search}
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          inputProps={{ 'aria-label': 'Search tickets by title or description' }}
           sx={{ minWidth: 200 }}
         />
 
@@ -43,6 +44,11 @@ const FilterBar = ({ filters, setFilters, users, columns, onClear }) => {
           value={safeUsers.filter(u => filters.assignees.includes(u._id))}
           onChange={(event, newValue) => {
             setFilters({ ...filters, assignees: newValue.map(v => v._id) });
+          }}
+          slotProps={{
+            input: {
+              'aria-label': 'Filter by assignees'
+            }
           }}
           renderOption={(props, option) => (
             <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -69,6 +75,7 @@ const FilterBar = ({ filters, setFilters, users, columns, onClear }) => {
             value={filters.statuses}
             label="Status"
             onChange={(e) => setFilters({ ...filters, statuses: e.target.value })}
+            aria-label="Filter by status"
             renderValue={(selected) => (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                 {selected.map((value) => {
@@ -90,14 +97,21 @@ const FilterBar = ({ filters, setFilters, users, columns, onClear }) => {
             size="small"
             value={filters.priorities}
             onChange={(e, val) => setFilters({ ...filters, priorities: val })}
+            aria-label="Filter by priority"
           >
-            <ToggleButton value="High" color="error">High</ToggleButton>
-            <ToggleButton value="Medium" color="warning">Med</ToggleButton>
-            <ToggleButton value="Low" color="success">Low</ToggleButton>
+            <ToggleButton value="High" color="error" aria-label="High priority">High</ToggleButton>
+            <ToggleButton value="Medium" color="warning" aria-label="Medium priority">Med</ToggleButton>
+            <ToggleButton value="Low" color="success" aria-label="Low priority">Low</ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
-        <Button startIcon={<ClearIcon />} onClick={onClear} size="small" sx={{ ml: 'auto', textTransform: 'none' }}>
+        <Button 
+          startIcon={<ClearIcon />} 
+          onClick={onClear} 
+          size="small" 
+          sx={{ ml: 'auto', textTransform: 'none' }}
+          aria-label="Clear all filters"
+        >
           Clear Filters
         </Button>
       </Box>

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Badge, Menu, Divider } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useNavigate, useLocation } from 'react-router-dom';
 import GlobalSearch from './GlobalSearch';
 import NotificationItem from './NotificationItem';
+import { useRole } from '../hooks/useRole.jsx';
 import { apiClient } from '../utils/apiClient';
 
-export default function Navbar({ authenticated }) {
+export default function Navbar({ authenticated, searchInputRef }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getRole } = useRole();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -118,6 +121,16 @@ export default function Navbar({ authenticated }) {
                 
                 <Button color="inherit" sx={{ whiteSpace: 'nowrap' }} onClick={() => navigate('/my-tickets')}>My Tickets</Button>
                 <Button color="inherit" sx={{ whiteSpace: 'nowrap' }} onClick={() => navigate('/boards')}>Boards</Button>
+                {getRole() === 'admin' && (
+                  <Button 
+                    color="inherit" 
+                    startIcon={<AdminPanelSettingsIcon />}
+                    sx={{ whiteSpace: 'nowrap' }} 
+                    onClick={() => navigate('/admin')}
+                  >
+                    Admin
+                  </Button>
+                )}
                 <Button color="inherit" sx={{ whiteSpace: 'nowrap' }} onClick={handleLogout}>Logout</Button>
 
                 <Menu

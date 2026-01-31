@@ -12,15 +12,15 @@ router.get('/mine', ticketController.getMyTickets);
 router.get('/', ticketController.listTickets);
 router.get('/:id', ticketController.getTicket);
 
-// POST/PUT/PATCH/DELETE endpoints - only members and admins can modify
-router.post('/', requireMember, ticketController.createTicket);
-router.put('/:id', requireMember, ticketController.updateTicket);
-router.patch('/:id', requireMember, ticketController.updateTicket);
-router.patch('/:id/move', requireMember, ticketController.moveTicket);
-router.delete('/:id', requireMember, ticketController.deleteTicket);
+// POST/PUT/PATCH/DELETE endpoints - all authenticated users can modify
+router.post('/', requireAuth, ticketController.createTicket);
+router.put('/:id', requireAuth, ticketController.updateTicket);
+router.patch('/:id', requireAuth, ticketController.updateTicket);
+router.patch('/:id/move', requireAuth, ticketController.moveTicket);
+router.delete('/:id', requireAuth, ticketController.deleteTicket);
 
-// Comments - only members and admins can add/delete
-router.post('/:id/comments', requireMember, ticketController.addComment);
-router.delete('/:id/comments/:commentId', requireMember, ticketController.deleteComment);
+// Comments - all authenticated users can add/delete
+router.post('/:id/comments', requireAuth, ticketController.addComment);
+router.delete('/:id/comments/:commentId', requireAuth, ticketController.deleteComment);
 
 module.exports = router;

@@ -1,22 +1,52 @@
-import React, { useState, useLayoutEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { CssBaseline, Box } from '@mui/material';
+import React, { useState, useLayoutEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { CssBaseline, Box, CircularProgress } from '@mui/material';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './styles/mobile.css';
 
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
-import BoardsList from './pages/BoardsList';
-import BoardViewPage from './pages/BoardViewPage';
-import MyTicketsPage from './pages/MyTicketsPage';
+import SignupPage from './pages/SignupPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import { RoleProvider, useRole } from './hooks/useRole.jsx';
+
+// Code splitting: Lazy load heavy route components
+const BoardsList = lazy(() => import('./pages/BoardsList'));
+const BoardViewPage = lazy(() => import('./pages/BoardViewPage'));
+const MyTicketsPage = lazy(() => import('./pages/MyTicketsPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+    <CircularProgress />
+  </Box>
+);
+
+// Admin route protection wrapper
+function AdminRouteGuard() {
+  const { getRole } = useRole();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (getRole() !== 'admin') {
+      navigate('/boards', { replace: true });
+    }
+  }, [getRole, navigate]);
+
+  return getRole() === 'admin' ? <AdminPage /> : null;
+}
 
 function AppContent() {
   const location = useLocation();
+  const searchInputRef = useRef(null);
+  const userFetchedRef = useRef(false);
   
   // ATOMIC NULL STATE: Starts as null so Navbar remains hidden 
   // via CSS until we are 100% sure of the auth status.
   const [authState, setAuthState] = useState(null);
+  const [user, setUser] = useState(null);
 
   useLayoutEffect(() => {
     // Synchronous check before the browser paints the first frame
@@ -25,28 +55,61 @@ function AppContent() {
     
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAuthState(hasToken && !isLoginPath);
+
+    // Fetch user with role/permissions ONCE (avoid repeated fetches)
+    if (hasToken && !isLoginPath && !userFetchedRef.current) {
+      userFetchedRef.current = true;
+      fetch('http://localhost:4000/api/users/me', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.json())
+        .then(json => {
+          if (json.ok) setUser(json.data);
+        })
+        .catch(err => console.error('Failed to fetch user role:', err));
+    }
   }, [location.pathname]);
 
-  return (
-    <Box 
-      // This attribute triggers the CSS rules you put in App.css
-      data-auth={authState === null ? "null" : authState ? "true" : "false"}
-      sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}
-    >
-      <Navbar authenticated={authState} />
+  // Keyboard shortcuts
+  useLayoutEffect(() => {
+    const handleKeyDown = (e) => {
+      // / to focus search (skip if in input already)
+      if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
 
-      <Box component="main" sx={{ flexGrow: 1 }}>
-        <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/boards" element={<BoardsList />} />
-            <Route path="/boards/:id" element={<BoardViewPage />} />
-            <Route path="/my-tickets" element={<MyTicketsPage />} />
-          </Routes>
-        </ErrorBoundary>
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <RoleProvider user={user}>
+      <Box 
+        // This attribute triggers the CSS rules you put in App.css
+        data-auth={authState === null ? "null" : authState ? "true" : "false"}
+        sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}
+      >
+        <Navbar authenticated={authState} searchInputRef={searchInputRef} />
+
+        <Box component="main" sx={{ flexGrow: 1 }}>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/login" />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/boards" element={<BoardsList />} />
+                <Route path="/boards/:id" element={<BoardViewPage />} />
+                <Route path="/my-tickets" element={<MyTicketsPage />} />
+                <Route path="/admin" element={<AdminRouteGuard />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </Box>
       </Box>
-    </Box>
+    </RoleProvider>
   );
 }
 
@@ -54,7 +117,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <CssBaseline />
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+      <ToastContainer 
+        position="top-right" 
+        autoClose={4000} 
+        hideProgressBar={false}
+        closeButton={true}
+        draggable={true}
+        pauseOnHover={true}
+        theme="light"
+      />
       <AppContent />
     </BrowserRouter>
   );

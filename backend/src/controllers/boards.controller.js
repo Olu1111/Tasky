@@ -28,12 +28,23 @@ const getBoardById = asyncHandler(async (req, res) => {
     const board = await models.Board.findById(id).populate("owner members", "name email role");
     if (!board) return res.status(404).json({ ok: false, error: "Board not found" });
     
-    if (!canAccessBoard(req.user, board)) {
+    // Ensure owner is properly populated as object
+    const owner = typeof board.owner === 'object' ? board.owner._id : board.owner;
+    const userId = req.user._id.toString();
+    const ownerId = owner.toString();
+    
+    // Check access with explicit comparison
+    const hasAccess = req.user.role === 'admin' || 
+                      ownerId === userId ||
+                      board.members.some(m => m._id.toString() === userId);
+    
+    if (!hasAccess) {
       return res.status(403).json({ ok: false, error: "You do not have access to this board" });
     }
     
     return res.json({ ok: true, data: { board } });
   } catch (err) {
+    console.error("getBoardById error:", err);
     return res.status(500).json({ ok: false, error: "Failed to fetch board" });
   }
 });
@@ -136,11 +147,42 @@ const deleteBoard = asyncHandler(async (req, res) => {
   }
 });
 
+const assignBoardMember = asyncHandler(async (req, res) => {
+  const { boardId, userId } = req.params;
+  
+  const board = await models.Board.findById(boardId);
+  if (!board) return res.status(404).json({ ok: false, error: "Board not found" });
+  
+  const user = await models.User.findById(userId);
+  if (!user) return res.status(404).json({ ok: false, error: "User not found" });
+  
+  if (!board.members.includes(userId)) {
+    board.members.push(userId);
+    await board.save();
+  }
+  
+  return res.json({ ok: true, data: { board: await board.populate("owner members", "name email role") } });
+});
+
+const removeBoardMember = asyncHandler(async (req, res) => {
+  const { boardId, userId } = req.params;
+  
+  const board = await models.Board.findById(boardId);
+  if (!board) return res.status(404).json({ ok: false, error: "Board not found" });
+  
+  board.members = board.members.filter(m => m.toString() !== userId);
+  await board.save();
+  
+  return res.json({ ok: true, data: { board: await board.populate("owner members", "name email role") } });
+});
+
 module.exports = {
   getBoardById,
   listBoards,
   createBoard,
   deleteBoard,
+  assignBoardMember,
+  removeBoardMember,
   canAccessBoard,
   canModifyBoard
 };

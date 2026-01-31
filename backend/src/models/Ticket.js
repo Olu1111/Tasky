@@ -45,6 +45,10 @@ const ticketSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "User"
     },
+    assignees: [{
+      type: Schema.Types.ObjectId,
+      ref: "User"
+    }],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -68,7 +72,8 @@ const ticketSchema = new Schema(
 );
 
 ticketSchema.index({ board: 1, column: 1, position: 1 }); 
-ticketSchema.index({ assignee: 1 }); 
+ticketSchema.index({ assignee: 1 });
+ticketSchema.index({ assignees: 1 }); 
 ticketSchema.index({ createdBy: 1 }); 
 ticketSchema.index({ createdAt: -1 });
 ticketSchema.index({ title: "text", description: "text" });
@@ -130,8 +135,10 @@ ticketSchema.statics.canUserAccess = async function(ticketId, userId) {
   const ticket = await this.findById(ticketId).populate('board');
   if (!ticket || ticket.deletedAt) return false;
   const board = ticket.board;
-  return board.owner.toString() === userId.toString() || 
-          (board.members && board.members.some(member => member.toString() === userId.toString()));
+  const isCreator = ticket.createdBy.toString() === userId.toString();
+  const isBoardOwner = board.owner.toString() === userId.toString();
+  const isBoardMember = board.members && board.members.some(member => member.toString() === userId.toString());
+  return isCreator || isBoardOwner || isBoardMember;
 };
 ticketSchema.virtual('isDeleted').get(function() {
   return !!this.deletedAt;

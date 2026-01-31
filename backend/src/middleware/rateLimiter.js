@@ -7,11 +7,11 @@ const rateLimit = require("express-rate-limit");
 
 /**
  * General API rate limiter
- * 300 requests per 15 minutes
+ * 1000 requests per 15 minutes (supports polling + normal usage)
  */
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
+  max: 1000, // Increased from 300 to support polling (30s interval = ~30 requests/15min per client)
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,

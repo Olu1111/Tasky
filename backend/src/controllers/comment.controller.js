@@ -7,11 +7,6 @@ exports.addComment = async (req, res) => {
     if (!text || !text.trim()) {
       return res.status(400).json({ ok: false, error: 'Comment text is required' });
     }
-    
-    // Only members and admins can add comments
-    if (!["admin", "member"].includes(req.user.role)) {
-      return res.status(403).json({ ok: false, error: "Only members and admins can add comments" });
-    }
 
     const ticket = await models.Ticket.findById(id).populate('board');
     if (!ticket) {
@@ -20,11 +15,12 @@ exports.addComment = async (req, res) => {
 
     // Check if user has access to the board/ticket
     const isAdmin = req.user.role === 'admin';
-    const isAssignee = ticket.assignee && ticket.assignee.toString() === req.user._id.toString();
+    const isCreator = ticket.createdBy.toString() === req.user._id.toString();
+    const isAssignee = ticket.assignees && ticket.assignees.some(a => a.toString() === req.user._id.toString());
     const isBoardOwner = ticket.board && ticket.board.owner.toString() === req.user._id.toString();
     const isBoardMember = ticket.board && ticket.board.members.some(m => m.toString() === req.user._id.toString());
 
-    if (!isAdmin && !isAssignee && !isBoardOwner && !isBoardMember) {
+    if (!isAdmin && !isCreator && !isAssignee && !isBoardOwner && !isBoardMember) {
       return res.status(403).json({ ok: false, error: "You don't have access to this ticket" });
     }
 
@@ -45,17 +41,44 @@ exports.addComment = async (req, res) => {
   }
 };
 
+exports.updateComment = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ ok: false, error: 'Comment text is required' });
+    }
+
+    const comment = await models.Comment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ ok: false, error: 'Comment not found' });
+    }
+
+    const isAuthor = comment.author.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ ok: false, error: 'Not authorized to edit this comment' });
+    }
+
+    comment.text = text.trim();
+    await comment.save();
+    await comment.populate('author', 'name email');
+
+    res.json({ ok: true, data: { comment } });
+  } catch (error) {
+    console.error('Update comment error:', error);
+    res.status(500).json({ ok: false, error: 'Failed to update comment' });
+  }
+};
+
 exports.deleteComment = async (req, res) => {
   try {
     const { commentId } = req.params; 
     const comment = await models.Comment.findById(commentId);
     if (!comment) {
       return res.status(404).json({ ok: false, error: 'Comment not found' });
-    }
-
-    // Only members and admins can delete comments
-    if (!["admin", "member"].includes(req.user.role)) {
-      return res.status(403).json({ ok: false, error: "Only members and admins can delete comments" });
     }
 
     const isAuthor = comment.author.toString() === req.user._id.toString();

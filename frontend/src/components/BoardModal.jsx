@@ -6,11 +6,13 @@ import {
 
 const BoardModal = ({ isOpen, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    onCreate(title);
-    setTitle(""); // Reset for next time
+    onCreate({ title, description });
+    setTitle("");
+    setDescription("");
     onClose();
   };
 
@@ -27,7 +29,7 @@ const BoardModal = ({ isOpen, onClose, onCreate }) => {
       </DialogTitle>
       
       <DialogContent>
-        <Box mt={1}>
+        <Box mt={1} display="flex" flexDirection="column" gap={2}>
           <TextField
             autoFocus
             label="Board Title"
@@ -35,6 +37,17 @@ const BoardModal = ({ isOpen, onClose, onCreate }) => {
             fullWidth
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            variant="outlined"
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+          />
+          <TextField
+            label="Description (optional)"
+            placeholder="Describe the board..."
+            fullWidth
+            multiline
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             variant="outlined"
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
           />

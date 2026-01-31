@@ -35,13 +35,13 @@ const BoardsList = () => {
 
   useEffect(() => { fetchBoards(); }, []);
 
-  const handleCreateBoard = async (title) => {
+  const handleCreateBoard = async ({ title, description }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:4000/api/boards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ title })
+        body: JSON.stringify({ title, description })
       });
       const result = await response.json();
       if (result.ok) {

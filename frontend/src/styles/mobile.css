@@ -1,0 +1,446 @@
+/* Mobile-Responsive Styles for Tasky Board View */
+
+/* Base Mobile Breakpoints & Design System */
+:root {
+  --mobile-breakpoint: 768px;
+  --tablet-breakpoint: 1024px;
+  --touch-target-min: 44px;
+  
+  /* Colors */
+  --primary: #263238;
+  --primary-light: #37474f;
+  --primary-lighter: #455a64;
+  --error: #d32f2f;
+  --success: #2e7d32;
+  --warning: #ed6c02;
+  --text-primary: #172b4d;
+  --text-secondary: #5e6c84;
+  --bg-light: #fafbfc;
+  --bg-neutral: #ebedf0;
+  
+  /* Timing */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  /* Prevent text selection on touch devices for better UX */
+  .board-column-header {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Smooth scrolling for mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize font sizes for mobile readability */
+  body {
+    font-size: 16px; /* Prevents zoom on input focus in iOS */
+  }
+
+  /* Better touch targets for interactive elements */
+  button,
+  a,
+  input[type="checkbox"],
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Column accordion animation */
+  .column-content {
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    overflow: hidden;
+  }
+
+  .column-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  .column-content.expanded {
+    max-height: 2000px;
+    opacity: 1;
+  }
+
+  /* Swipe indicator for columns */
+  .swipeable-column {
+    position: relative;
+  }
+
+  .swipeable-column::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+  }
+
+  /* Improved modal dialogs for mobile */
+  .MuiDialog-paper {
+    margin: 16px !important;
+    max-height: calc(100% - 32px) !important;
+  }
+
+  /* Better card spacing on mobile */
+  .board-card {
+    margin-bottom: 12px !important;
+  }
+
+  /* Optimize filter bar for mobile */
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Stack navigation buttons vertically if needed */
+  .mobile-nav-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* 2-column layout for tablets */
+  .board-columns-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .board-view-container {
+    height: calc(100vh - 48px);
+  }
+
+  .board-header {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+}
+
+/* Touch-specific enhancements */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .icon-button {
+    padding: 12px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .board-card:hover {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+  }
+
+  /* Active state feedback for touch */
+  .board-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  button:active {
+    opacity: 0.8;
+  }
+}
+
+/* High DPI screens (Retina displays) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders and shadows */
+  .board-card {
+    border-width: 0.5px;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X, etc.) */
+@supports (padding: env(safe-area-inset-top)) {
+  .board-view-container {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Pull-to-refresh prevention */
+@media (max-width: 768px) {
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+  /* Ensure focus indicators are visible */
+  *:focus-visible {
+    outline: 2px solid #263238;
+    outline-offset: 2px;
+  }
+
+  /* Larger text for better readability */
+  .board-title {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+
+  .card-title {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+}
+
+/* Animation for column collapse/expand */
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 2000px;
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    max-height: 2000px;
+    opacity: 1;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+  }
+}
+
+.column-expanding {
+  animation: slideDown 0.3s ease-in-out forwards;
+}
+
+.column-collapsing {
+  animation: slideUp 0.3s ease-in-out forwards;
+}
+
+/* Optimize scrolling performance */
+@media (max-width: 768px) {
+  .scrollable-area {
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ===== UI CONSISTENCY & MICRO-INTERACTIONS ===== */
+
+/* Button Standardization */
+button, a[role="button"], .MuiButton-root {
+  transition: all var(--transition-fast) !important;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.MuiButton-contained {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast) !important;
+}
+
+.MuiButton-contained:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.MuiButton-contained:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.MuiButton-outlined {
+  transition: all var(--transition-fast) !important;
+  border-width: 1.5px;
+}
+
+.MuiButton-outlined:hover {
+  border-width: 1.5px;
+  background-color: rgba(38, 50, 56, 0.04);
+}
+
+.MuiButton-text {
+  transition: all var(--transition-fast) !important;
+}
+
+.MuiButton-text:hover {
+  background-color: rgba(38, 50, 56, 0.08);
+}
+
+/* Icon Buttons */
+.MuiIconButton-root {
+  transition: all var(--transition-fast) !important;
+}
+
+.MuiIconButton-root:hover {
+  background-color: rgba(38, 50, 56, 0.08);
+  transform: scale(1.08);
+}
+
+.MuiIconButton-root:active {
+  transform: scale(0.95);
+}
+
+/* Interactive Elements Focus States */
+.MuiButton-root:focus-visible,
+.MuiIconButton-root:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* TextField Styling */
+.MuiTextField-root .MuiOutlinedInput-root {
+  transition: all var(--transition-fast) !important;
+}
+
+.MuiTextField-root .MuiOutlinedInput-root:hover {
+  border-color: var(--primary-light);
+}
+
+.MuiTextField-root .MuiOutlinedInput-root.Mui-focused {
+  box-shadow: 0 0 0 3px rgba(38, 50, 56, 0.1);
+}
+
+/* Chip Styling */
+.MuiChip-root {
+  transition: all var(--transition-fast) !important;
+  font-weight: 700;
+}
+
+.MuiChip-root:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Dialog/Modal Transitions */
+.MuiDialog-paper {
+  animation: slideUp var(--transition-normal) ease-out;
+}
+
+.MuiDialog-backdrop {
+  transition: background-color var(--transition-normal) ease-out !important;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.MuiDialog-paper.exiting {
+  animation: slideDown var(--transition-normal) ease-in;
+}
+
+/* Card Interactions */
+.MuiCard-root {
+  transition: all var(--transition-fast) !important;
+}
+
+.MuiCard-root:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+.MuiCard-root:active {
+  transform: translateY(0);
+}
+
+/* Toast Notifications Styling */
+.Toastify__toast {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  animation: toastSlideIn var(--transition-normal) ease-out;
+}
+
+.Toastify__toast--success {
+  background: linear-gradient(135deg, var(--success) 0%, #1b5e20 100%);
+}
+
+.Toastify__toast--error {
+  background: linear-gradient(135deg, var(--error) 0%, #b71c1c 100%);
+}
+
+.Toastify__toast--warning {
+  background: linear-gradient(135deg, var(--warning) 0%, #e65100 100%);
+}
+
+.Toastify__toast--info {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.Toastify__toast--rtl {
+  animation: toastSlideInRtl var(--transition-normal) ease-out;
+}
+
+@keyframes toastSlideInRtl {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Disable transitions on mobile during animations */
+@media (max-width: 768px) {
+  .MuiDialog-paper {
+    max-height: calc(100% - 32px);
+  }
+}
+
+/* Accessibility: Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  button, 
+  .MuiButton-root,
+  .MuiCard-root,
+  .MuiDialog-paper,
+  .MuiTextField-root .MuiOutlinedInput-root,
+  .Toastify__toast {
+    transition: none !important;
+    animation: none !important;
+  }
+}

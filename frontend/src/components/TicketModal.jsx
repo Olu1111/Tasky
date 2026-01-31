@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, TextField, Typography, Box, MenuItem,
-  Avatar, ListItemIcon, ListItemText, InputAdornment
+  Avatar, ListItemIcon, ListItemText, InputAdornment, Alert
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import { useRole, ProtectedFeature } from '../hooks/useRole.jsx';
 
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return '#263238';
@@ -30,12 +31,14 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
   const [assignee, setAssignee] = useState("");
   const [teamMembers, setTeamMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const dialogRef = useRef(null);
+  const { canPerform } = useRole();
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:4000/api/users', {
+        const response = await fetch('http://localhost:4000/api/users/team', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await response.json();
@@ -47,13 +50,9 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
     if (isOpen) fetchUsers();
   }, [isOpen]);
 
-  // 🎯 KEYBOARD SHORTCUTS
   const handleKeyDown = (e) => {
-    // Ctrl/Cmd + Enter to submit from anywhere
-    // Enter to submit if focus is on the title field
     const isHotkey = (e.key === 'Enter' && (e.ctrlKey || e.metaKey));
     const isTitleEnter = (e.key === 'Enter' && e.target.name === 'title');
-
     if (isHotkey || isTitleEnter) {
       if (title.trim()) {
         e.preventDefault();
@@ -68,54 +67,129 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    
     onCreate({ 
       title: title.trim(), 
       description, 
       priority, 
       assignee: assignee === "" ? null : assignee 
     });
-
     setTitle(""); setDescription(""); setPriority("Medium"); setAssignee(""); setSearchTerm("");
     onClose();
   };
 
+  // Focus trapping
+  useEffect(() => {
+    if (!isOpen || !dialogRef.current) return;
+
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    dialogRef.current.addEventListener('keydown', handleEscapeKey);
+    return () => dialogRef.current?.removeEventListener('keydown', handleEscapeKey);
+  }, [isOpen, onClose]);
+
   return (
     <Dialog 
+      ref={dialogRef}
       open={isOpen} 
       onClose={onClose} 
       fullWidth 
       maxWidth="xs"
       disableRestoreFocus 
-      onKeyDown={handleKeyDown} // 🎯 Attach shortcuts
+      onKeyDown={handleKeyDown}
+      PaperProps={{ sx: { borderRadius: '12px' } }}
+      TransitionProps={{ timeout: 300 }}
+      aria-labelledby="ticket-modal-title"
+      aria-describedby="ticket-modal-description"
     >
-      <DialogTitle component="div" sx={{ pb: 1 }}>
+      <DialogTitle id="ticket-modal-title" component="div" sx={{ pb: 1 }}>
         <Typography variant="h5" component="span" fontWeight="800" display="block">
           New Task
         </Typography>
-        <Typography variant="body2" component="span" color="text.secondary" display="block">
+        <Typography id="ticket-modal-description" variant="body2" component="span" color="text.secondary" display="block">
           Column: <strong>{columnTitle}</strong>
         </Typography>
       </DialogTitle>
       
       <DialogContent>
+        {!canPerform('create_ticket') && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            🔒 You don't have permission to create tickets. Contact an admin to upgrade your role.
+          </Alert>
+        )}
         <Box mt={1} display="flex" flexDirection="column" gap={2.5}>
           <TextField 
             label="Task Title *" 
-            name="title" // Required for the Enter shortcut logic
+            name="title"
             fullWidth 
             value={title} 
             onChange={(e) => setTitle(e.target.value)} 
             autoFocus
+            variant="outlined"
+            inputProps={{ 'aria-label': 'Task title' }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.15s ease',
+                '&:hover': { borderColor: '#263238' },
+                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(38,50,56,0.1)' }
+              }
+            }}
           />
-          <TextField label="Description" multiline rows={3} fullWidth value={description} onChange={(e) => setDescription(e.target.value)} />
+          <TextField 
+            label="Description" 
+            multiline 
+            rows={3} 
+            fullWidth 
+            value={description} 
+            onChange={(e) => setDescription(e.target.value)}
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.15s ease',
+                '&:hover': { borderColor: '#263238' },
+                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(38,50,56,0.1)' }
+              }
+            }}
+          />
 
-          <TextField select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} fullWidth>
+          <TextField 
+            select 
+            label="Priority" 
+            value={priority} 
+            onChange={(e) => setPriority(e.target.value)} 
+            fullWidth
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.15s ease',
+                '&:hover': { borderColor: '#263238' },
+                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(38,50,56,0.1)' }
+              }
+            }}
+          >
             {PRIORITIES.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
           </TextField>
 
-          <TextField select label="Assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} fullWidth
-            SelectProps={{ MenuProps: { autoFocus: false } }}>
+          <TextField 
+            select 
+            label="Assignee" 
+            value={assignee} 
+            onChange={(e) => setAssignee(e.target.value)} 
+            fullWidth
+            variant="outlined"
+            SelectProps={{ MenuProps: { autoFocus: false } }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.15s ease',
+                '&:hover': { borderColor: '#263238' },
+                '&.Mui-focused': { boxShadow: '0 0 0 3px rgba(38,50,56,0.1)' }
+              }
+            }}
+          >
             <Box sx={{ p: 2, pb: 1 }}>
               <TextField size="small" placeholder="Search teammates..." fullWidth value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -145,9 +219,34 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained" disabled={!title.trim()} sx={{ bgcolor: '#263238', fontWeight: 700, textTransform: 'none' }}>
+      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        <Button 
+          onClick={onClose} 
+          variant="text"
+          sx={{ 
+            textTransform: 'none',
+            fontWeight: 700,
+            color: 'text.secondary',
+            '&:hover': { bgcolor: 'action.hover' },
+            '&:focus-visible': { outline: '2px solid #263238', outlineOffset: '2px' }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          disabled={!title.trim() || !canPerform('create_ticket')} 
+          sx={{ 
+            bgcolor: '#263238',
+            fontWeight: 700,
+            textTransform: 'none',
+            px: 3,
+            '&:hover:not(:disabled)': { bgcolor: '#37474f', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' },
+            '&:active:not(:disabled)': { boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+            '&:focus-visible': { outline: '2px solid #fff', outlineOffset: '2px' }
+          }}
+        >
           Create Ticket
         </Button>
       </DialogActions>

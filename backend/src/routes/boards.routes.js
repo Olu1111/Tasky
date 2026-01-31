@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { requireAuth, requireMember } = require("../middleware/auth");
+const { requireAuth, requireMember, requireAdmin } = require("../middleware/auth");
 const boardsCtrl = require("../controllers/boards.controller");
 const colCtrl = require("../controllers/columns.controller");
 
@@ -15,6 +15,10 @@ router.post("/", requireAuth, requireMember, boardsCtrl.createBoard);
 
 // DELETE - only board owner or admin can delete
 router.delete("/:id", requireAuth, requireMember, boardsCtrl.deleteBoard);
+
+// Admin: Assign/Remove board members
+router.post("/:boardId/members/:userId", requireAuth, requireAdmin, boardsCtrl.assignBoardMember);
+router.delete("/:boardId/members/:userId", requireAuth, requireAdmin, boardsCtrl.removeBoardMember);
 
 // --- COLUMN SUB-ROUTES ---
 // GET - viewers, members, and admins can list columns
