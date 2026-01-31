@@ -1,7 +1,5 @@
 import { handleNetworkError } from './notifications';
-
-// Use environment variable for API URL, fallback to localhost for development
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { API_BASE_URL } from './apiBase';
 
 async function request(endpoint, options = {}, retries = 2) {
   const token = localStorage.getItem('token');
@@ -16,7 +14,7 @@ async function request(endpoint, options = {}, retries = 2) {
   };
 
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
     if (response.status === 401) {
       handleNetworkError(new Error('Session expired'), 'Auth');

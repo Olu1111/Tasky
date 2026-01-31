@@ -1,7 +1,6 @@
 // Frontend utility to display seeded board data
 // Shows stats and sample tickets from boards
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { API_BASE_URL } from './apiBase';
 
 /**
  * Fetch board statistics including ticket counts
@@ -9,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 export const fetchBoardStats = async (boardId) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/boards/${boardId}`, {
+    const response = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -49,7 +48,7 @@ export const fetchBoardStats = async (boardId) => {
 export const fetchAllBoardsStats = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/boards`, {
+    const response = await fetch(`${API_BASE_URL}/boards`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -193,7 +192,7 @@ export const displaySampleData = async (boardId) => {
 export const exportBoardDataAsJSON = async (boardId) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/boards/${boardId}`, {
+    const response = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 

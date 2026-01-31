@@ -6,8 +6,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CommentThread from './CommentThread';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { API_BASE_URL } from '../utils/apiBase';
 
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return "#263238";
@@ -40,7 +39,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
       if (ticket && ticket._id && isOpen) {
         try {
           const token = localStorage.getItem('token');
-          const res = await fetch(`${API_URL}/tickets/${ticket._id}`, {
+          const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const json = await res.json();
@@ -73,7 +72,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/users/team`, { 
+        const res = await fetch(`${API_BASE_URL}/users/team`, { 
           headers: { 'Authorization': `Bearer ${token}` } 
         });
         const json = await res.json();
@@ -103,7 +102,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
 
   const handleAddComment = async (text) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}/tickets/${ticket._id}/comments`, {
+    const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ text }),
@@ -117,7 +116,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
 
   const handleUpdateComment = async (commentId, text) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}/tickets/${ticket._id}/comments/${commentId}`, {
+    const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}/comments/${commentId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ text }),
@@ -134,7 +133,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
   const handleDeleteComment = async (commentId) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_URL}/tickets/${ticket._id}/comments/${commentId}`, {
+      const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}/comments/${commentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -166,7 +165,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
     // Refetch the ticket to ensure all changes (including deleted comments) are synced
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_URL}/tickets/${ticket._id}`, {
+      const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const json = await res.json();
@@ -184,7 +183,7 @@ const EditTicketModal = ({ isOpen, onClose, onUpdate, ticket, columns }) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/tickets/${ticket._id}`, {
+      const res = await fetch(`${API_BASE_URL}/tickets/${ticket._id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

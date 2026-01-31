@@ -6,8 +6,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { useRole, ProtectedFeature } from '../hooks/useRole.jsx';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { API_BASE_URL } from '../utils/apiBase';
 
 const getAvatarColor = (id, name) => {
   if (name?.toLowerCase() === 'admin') return '#263238';
@@ -40,7 +39,7 @@ const TicketModal = ({ isOpen, onClose, onCreate, columnTitle }) => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/users/team`, {
+        const response = await fetch(`${API_BASE_URL}/users/team`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await response.json();

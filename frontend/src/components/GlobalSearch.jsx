@@ -7,8 +7,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { rankResults, getContextSnippet, performanceTracker } from '../utils/searchUtils';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { API_BASE_URL } from '../utils/apiBase';
 
 const GlobalSearch = React.forwardRef(({ searchInputRef }, ref) => {
   const [query, setQuery] = useState('');
@@ -33,7 +32,7 @@ const GlobalSearch = React.forwardRef(({ searchInputRef }, ref) => {
     setLoading(true);
     setOpen(true);
     try {
-      const response = await fetch(`${API_URL}/tickets/search?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/tickets/search?q=${encodeURIComponent(query)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
